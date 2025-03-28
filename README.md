@@ -5,6 +5,11 @@
 - 결과 xml 파일의 갯수에 따라 표 크기 늘어남 개선
 - 디자인 개선
 
+# 사용 방법
+```
+python .\scripts\genHtmlReportFromGtest.py "Project Name" "Test Name" out\report.html in\*.xml
+```
+
 
 
 --- 기존 설명 ---
