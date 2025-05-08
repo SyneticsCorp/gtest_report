@@ -8,12 +8,14 @@ from xml.parsers.expat import ExpatError
 from datetime import datetime
 from pathlib import Path
 
+
 class TestCaseResult:
     def __init__(self, name: str, time: float, status: str, failure_message: str = ""):
         self.name = name
         self.time = time
         self.status = status
         self.failure_message = failure_message
+
 
 class TestFileResult:
     def __init__(
@@ -24,15 +26,16 @@ class TestFileResult:
         skipped: int,
         duration: float,
         timestamp: datetime | None,
-        cases: list[TestCaseResult]
+        cases: list[TestCaseResult],
     ):
-        self.filename  = filename
-        self.total     = total
-        self.failures  = failures
-        self.skipped   = skipped
-        self.duration  = duration
+        self.filename = filename
+        self.total = total
+        self.failures = failures
+        self.skipped = skipped
+        self.duration = duration
         self.timestamp = timestamp
-        self.cases     = cases
+        self.cases = cases
+
 
 def parse_file(xml_path: Path | str) -> TestFileResult:
     path_str = str(xml_path)
@@ -42,13 +45,16 @@ def parse_file(xml_path: Path | str) -> TestFileResult:
         raise RuntimeError(f"Failed to parse {path_str}: {e}")
 
     # testsuites / testsuite 노드 찾기
-    suites = dom.getElementsByTagName("testsuites") or dom.getElementsByTagName("testsuite")
+    suites = dom.getElementsByTagName("testsuites") or dom.getElementsByTagName(
+        "testsuite"
+    )
     if not suites:
         raise RuntimeError(f"No <testsuites> or <testsuite> in {path_str}")
     root = suites[0]
 
     # timestamp 수집: 'timestamp' 및 'timestamps' 속성 모두 체크
     timestamps: list[datetime] = []
+
     def collect_ts(node):
         for attr in ("timestamp", "timestamps"):
             if node.hasAttribute(attr):
@@ -72,28 +78,28 @@ def parse_file(xml_path: Path | str) -> TestFileResult:
 
     # failures, duration 집계
     failures_count = sum(int(n.getAttribute("failures") or 0) for n in suite_nodes)
-    total_time     = sum(float(n.getAttribute("time") or 0.0) for n in suite_nodes)
+    total_time = sum(float(n.getAttribute("time") or 0.0) for n in suite_nodes)
 
-    testcases     = dom.getElementsByTagName("testcase")
+    testcases = dom.getElementsByTagName("testcase")
     skipped_count = 0
     cases: list[TestCaseResult] = []
     for tc in testcases:
         fullname = f"{tc.getAttribute('classname')}.{tc.getAttribute('name')}"
-        elapsed  = float(tc.getAttribute("time") or 0.0)
+        elapsed = float(tc.getAttribute("time") or 0.0)
 
         failure_nodes = tc.getElementsByTagName("failure")
         if failure_nodes:
-            status = 'failed'
-            node   = failure_nodes[0]
-            msg    = node.getAttribute("message") or ""
-            text   = node.firstChild.nodeValue if node.firstChild else ""
+            status = "failed"
+            node = failure_nodes[0]
+            msg = node.getAttribute("message") or ""
+            text = node.firstChild.nodeValue if node.firstChild else ""
             failure_message = (msg + "\n" + text).strip()
         elif tc.getElementsByTagName("skipped"):
-            status = 'skipped'
+            status = "skipped"
             skipped_count += 1
             failure_message = ""
         else:
-            status = 'success'
+            status = "success"
             failure_message = ""
 
         cases.append(TestCaseResult(fullname, elapsed, status, failure_message))
@@ -107,8 +113,9 @@ def parse_file(xml_path: Path | str) -> TestFileResult:
         skipped=skipped_count,
         duration=total_time,
         timestamp=earliest,
-        cases=cases
+        cases=cases,
     )
+
 
 def parse_files(xml_paths: list[Path] | list[str]):
     results = []

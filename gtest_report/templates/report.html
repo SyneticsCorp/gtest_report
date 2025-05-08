@@ -1,16 +1,31 @@
-<!-- File: gtest_report/templates/report.html -->
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <title>{{ title }}</title>
   <link rel="stylesheet" href="html_resources/gtest_report.css">
+  <!-- Chart.js 라이브러리 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+  <!-- DataLabels 플러그인: dist 경로로 정확히 지정 -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="html_resources/extraScript.js"></script>
   <style>
-    .chart-container { display: flex; gap: 2rem; margin: 1rem 0; }
-    .chart-box { flex: 1; text-align: center; }
+    /* 차트 컨테이너 및 캔버스 크기 강제 지정 */
+    .chart-container {
+      display: flex;
+      gap: 2rem;
+      margin: 1rem 0;
+    }
+    .chart-box {
+      flex: 1;
+      text-align: center;
+      height: 300px;           /* 고정 높이 설정 */
+      position: relative;
+    }
+    .chart-box canvas {
+      width: 100% !important;  /* 부모 높이에 맞춤 */
+      height: 100% !important;
+    }
   </style>
 </head>
 <body>
@@ -23,6 +38,7 @@
     {% endfor %}
   </table>
 
+  <!-- 두 개의 파이 차트 -->
   <div class="chart-container">
     <div class="chart-box">
       <canvas id="execChart"></canvas>
@@ -35,60 +51,56 @@
   </div>
 
   <script>
-    // Register DataLabels plugin
-    Chart.register(ChartDataLabels);
+    document.addEventListener('DOMContentLoaded', () => {
+      // DataLabels 플러그인 등록
+      Chart.register(ChartDataLabels);
 
-    // Execution Rate Chart
-    new Chart(
-      document.getElementById('execChart'),
-      {
-        type: 'pie',
-        data: {
-          labels: {{ exec_labels|safe }},
-          datasets: [{
-            data: {{ exec_values|safe }},
-            backgroundColor: ['#4BC0C0','#FFCE56']
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            datalabels: {
-              formatter: value => value,
-              color: '#fff',
-              font: { weight: 'bold', size: 14 }
-            },
-            tooltip: { enabled: false }
-          }
+      // 공통 옵션
+      const commonOpts = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          datalabels: {
+            formatter: (value) => value,
+            color: '#fff',
+            font: { weight: 'bold', size: 14 }
+          },
+          tooltip: { enabled: false }
         }
-      }
-    );
+      };
 
-    // Success Rate Chart
-    new Chart(
-      document.getElementById('succChart'),
-      {
-        type: 'pie',
-        data: {
-          labels: {{ succ_labels|safe }},
-          datasets: [{
-            data: {{ succ_values|safe }},
-            backgroundColor: ['#36A2EB','#FF6384']
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            datalabels: {
-              formatter: value => value,
-              color: '#fff',
-              font: { weight: 'bold', size: 14 }
-            },
-            tooltip: { enabled: false }
-          }
+      // Execution Rate 차트
+      new Chart(
+        document.getElementById('execChart').getContext('2d'),
+        {
+          type: 'pie',
+          data: {
+            labels: {{ exec_labels|safe }},
+            datasets: [{
+              data: {{ exec_values|safe }},
+              backgroundColor: ['#4BC0C0','#FFCE56']
+            }]
+          },
+          options: commonOpts
         }
-      }
-    );
+      );
+
+      // Success Rate 차트
+      new Chart(
+        document.getElementById('succChart').getContext('2d'),
+        {
+          type: 'pie',
+          data: {
+            labels: {{ succ_labels|safe }},
+            datasets: [{
+              data: {{ succ_values|safe }},
+              backgroundColor: ['#36A2EB','#FF6384']
+            }]
+          },
+          options: commonOpts
+        }
+      );
+    });
   </script>
 
   <h2>Failed Tests</h2>
