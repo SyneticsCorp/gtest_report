@@ -1,13 +1,14 @@
 # File: scripts/cli.py
 """
 Command-line interface for generating multiple GTest HTML reports and an index.
-- Accepts a project name, input root directory, and output directory
+- Accepts project name, input root directory, and output directory
 - Scans input root for subfolders UT, UIT, CT, CIT, SRT
+- Logs detailed processing info: number of XMLs found, processed, and error details
 - Generates individual reports {folder}_Report.html in output directory
-  with title: <project_name> <Test Type> Report
-- Creates index.html titled "<project_name> Test Report" summarizing each report
+- Creates index.html summarizing Overall Summary of each report with links
 - Report types with no tests display NT for all values and link
 - Adds footnote: NT: Not Tested
+- Maps abbreviations to full names and adjusts column widths
 Version: 1
 """
 import os
@@ -112,27 +113,37 @@ def main():
     output_root  = sys.argv[3]
     os.makedirs(output_root, exist_ok=True)
 
+    print(f"Starting report generation for project: {project_name}")
+    print(f"Input root: {input_root}, Output root: {output_root}\n")
+
     index_rows = []
     for rtype in REPORT_TYPES:
-        xml_dir   = os.path.join(input_root, rtype)
-        pattern   = os.path.join(xml_dir, '*.xml')
+        name = DISPLAY_NAMES.get(rtype)
+        xml_dir = os.path.join(input_root, rtype)
+        pattern = os.path.join(xml_dir, '*.xml')
         xml_files = glob.glob(pattern)
+        count = len(xml_files)
+        print(f"Processing {rtype} ({name}): found {count} XML files.")
         if xml_files:
-            # Generate individual report with full name in title
-            report_title = DISPLAY_NAMES.get(rtype, rtype)
-            out_file     = os.path.join(output_root, f"{rtype}_Report.html")
-            generate_report(project_name, report_title, xml_files, out_file)
-        # Build index row regardless
+            try:
+                report_name = name
+                out_file = os.path.join(output_root, f"{rtype}_Report.html")
+                generate_report(project_name, report_name, xml_files, out_file)
+                print(f"  -> Generated {rtype}_Report.html with {count} files processed.")
+            except Exception as e:
+                print(f"  ERROR generating report for {rtype}: {e}")
+        else:
+            print(f"  -> No XML files for {rtype}, marked NT.")
         row = build_index_row(rtype, xml_files, project_name)
         index_rows.append(row)
 
     # Write index.html
     index_content = INDEX_TEMPLATE.format(project_name=project_name, rows=''.join(index_rows))
-    index_path    = os.path.join(output_root, 'index.html')
+    index_path = os.path.join(output_root, 'index.html')
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write(index_content)
-    print(f"Index generated at {index_path}")
-
+    print(f"\nIndex generated at {index_path}")
+    print("All reports processed successfully.")
 
 if __name__ == '__main__':
     main()
