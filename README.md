@@ -7,7 +7,12 @@
 
 # 사용 방법
 ```
-python .\scripts\genHtmlReportFromGtest.py "Project Name" "Test Name" out\report.html in\*.xml
+python ./scripts/cli.py 프로젝트명 in out
+```
+
+- 예제
+```
+python ./scripts/cli.py PARA in out
 ```
 
 # 라이브러리 설치
@@ -15,8 +20,7 @@ python .\scripts\genHtmlReportFromGtest.py "Project Name" "Test Name" out\report
 pip install matplotlib
 ```
 
-
---- 기존 설명 ---
+# 기존 설명
 Pyton 2.* script which generate rather simple HTML output in "out/"directory based on xml gtests repors from "in/" directory.
 Clone it and use "generate.(sh|bat)" as startup script. Script was tested with xml output format from gtest-1.7.0.
 
