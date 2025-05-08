@@ -1,22 +1,22 @@
 # File: gtest_report/cli.py
 
 """
-Command-line interface for generating multiple GTest HTML reports and an index.
+Command-line interface for parallel GTest HTML report generation and an index.
+- Parallelizes per-test-type report generation using ProcessPoolExecutor.
 - Accepts project name, input root directory, and output directory
-- Scans input root for subfolders UT, UIT, CT, CIT, SRT
-- Uses pathlib for all path manipulations
-- Builds each index row as pure <td>…</td> (no outer <tr>)
+- Logs count of XML files per type
 Version: 1
 """
-
 import sys
 from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from .parser import parse_files
 from .generator import generate_report
 
-REPORT_TYPES  = ['UT', 'UIT', 'CT', 'CIT', 'SRT']
+REPORT_TYPES = ['UT', 'UIT', 'CT', 'CIT', 'SRT']
 DISPLAY_NAMES = {
     'UT':  'Unit Test',
     'UIT': 'Unit Integration Test',
@@ -26,9 +26,7 @@ DISPLAY_NAMES = {
 }
 
 def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
-    """
-    <td>…</td> 문자열만 반환 (no <tr> wrapper)
-    """
+    """Generate <td>…</td> cells for the index row of a given type."""
     name = DISPLAY_NAMES[report_type]
     if xml_paths:
         results, total, failures, skipped, timestamps = parse_files(xml_paths)
@@ -36,22 +34,22 @@ def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
         successes = executed - failures
         ts_str    = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ''
         link      = f'<a href="{report_type}_Report.html">View</a>'
-        fail_html = f'<span style="color:red;">{failures}</span>' if failures>0 else '0'
-        cells = [
-            name,
-            str(total),
-            str(executed),
-            str(successes),
-            fail_html,
-            str(skipped),
-            ts_str,
-            link
-        ]
+        fail_html = f'<span style="color:red;">{failures}</span>' if failures > 0 else '0'
+        cells = [name, str(total), str(executed), str(successes),
+                 fail_html, str(skipped), ts_str, link]
     else:
         cells = [name] + ['NT'] * 7
 
     return ''.join(f'<td>{c}</td>' for c in cells)
 
+def _worker(task):
+    """Worker function for parallel report generation."""
+    rtype, project, report_name, xmls, out_root = task
+    try:
+        generate_report(project, report_name, xmls, out_root / f"{rtype}_Report.html")
+        return (rtype, True, None)
+    except Exception as e:
+        return (rtype, False, str(e))
 
 def main():
     if len(sys.argv) != 4:
@@ -66,40 +64,44 @@ def main():
     print(f"Starting report generation for project: {project_name}")
     print(f"Input: {input_root}, Output: {output_root}\n")
 
-    index_rows = []
+    tasks = []
+    # Log XML count and prepare tasks
     for rtype in REPORT_TYPES:
-        xml_dir   = input_root / rtype
-        xml_files = list(xml_dir.glob("*.xml"))
-        name      = DISPLAY_NAMES[rtype]
-        print(f"Processing {rtype} ({name}): {len(xml_files)} XML files found.")
-        if xml_files:
-            try:
-                generate_report(project_name, name, xml_files, output_root / f"{rtype}_Report.html")
+        xml_dir = input_root / rtype
+        xmls    = list(xml_dir.glob("*.xml"))
+        count   = len(xmls)
+        name    = DISPLAY_NAMES[rtype]
+        print(f"Processing {rtype} ({name}): {count} XML files found.")
+        tasks.append((rtype, project_name, name, xmls, output_root))
+
+    # Parallel execution
+    with ProcessPoolExecutor() as executor:
+        future_map = {executor.submit(_worker, t): t[0] for t in tasks}
+        for future in as_completed(future_map):
+            rtype, success, err = future.result()
+            if success:
                 print(f"  → {rtype}_Report.html generated")
-            except Exception as e:
-                print(f"[ERROR] Generating {rtype}: {e}", file=sys.stderr)
-        else:
-            print(f"  → No XMLs for {rtype}, marking NT")
+            else:
+                print(f"[ERROR] Generating {rtype}: {err}", file=sys.stderr)
 
-        row_cells = build_index_cells(rtype, xml_files)
-        index_rows.append(row_cells)
+    # Build index rows
+    index_rows = [
+        build_index_cells(rtype, list((input_root / rtype).glob("*.xml")))
+        for rtype in REPORT_TYPES
+    ]
 
-    # index.html 렌더링
+    # Render index.html
     tpl_dir = Path(__file__).parent / "templates"
     env     = Environment(
         loader=FileSystemLoader(str(tpl_dir)),
         autoescape=select_autoescape(["html"])
     )
     tpl     = env.get_template("index.html")
-    content = tpl.render(
-        project_name=project_name,
-        index_rows=index_rows
-    )
+    content = tpl.render(project_name=project_name, index_rows=index_rows)
     (output_root / "index.html").write_text(content, encoding="utf-8")
 
     print(f"\nIndex generated at {output_root/'index.html'}")
     print("All reports processed successfully.")
-
 
 if __name__ == "__main__":
     main()
