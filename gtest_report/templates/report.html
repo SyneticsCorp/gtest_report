@@ -28,7 +28,7 @@
 <body>
   <h1>{{ title }}</h1>
 
-  <h2>Overall Summary</h2>
+  <h2>Overall Test Summary</h2>
   <table class="overall_summary">
     {% for row in overall_rows %}
       <tr>{{ row|safe }}</tr>
@@ -95,7 +95,7 @@
     });
   </script>
 
-  <h2>Failed Tests</h2>
+  <h2>Failed Test Cases</h2>
   {% if failed_rows|length > 1 %}
     <table class="failed_tests">
       {% for row in failed_rows %}
@@ -106,17 +106,17 @@
     <div>No failed tests</div>
   {% endif %}
 
-  <h2>File Summary</h2>
+  <h2>Test File Summary</h2>
   <table class="file_summary">
     {% for row in file_rows %}
       <tr>{{ row|safe }}</tr>
     {% endfor %}
   </table>
 
-  <h2>Test Details by File</h2>
+  <h2>Detailed Test Results</h2>
   <div style="margin:1rem 0;">
-    <input type="text" id="searchInput" placeholder="Search test name..." />
-    <label><input type="checkbox" id="failOnlyToggle" /> Show Failed Only</label>
+    <input type="text" id="searchInput" placeholder="Search Test Name…" />
+    <label><input type="checkbox" id="failOnlyToggle" /> Show Only Failed Tests</label>
   </div>
   <div id="detailsContainer">
     {% for detail in test_details %}

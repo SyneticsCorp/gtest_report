@@ -29,9 +29,9 @@
   </table>
   {% endif %}
 
-  <h2>Overall Results</h2>
+  <h2>Overall Summary</h2>
 
-  <h3>Summary by Test Stage</h3>
+  <h3>Test Stage Summary</h3>
   <table class="index_summary">
     <colgroup>
       <col style="width:18%">
@@ -45,22 +45,22 @@
       <col style="width:12%">
     </colgroup>
     <tr>
-      <th>Report Type</th>
-      <th>Total</th>
-      <th>Executed</th>
-      <th>Success</th>
-      <th>Failure</th>
-      <th>Skipped (No Reason)</th>
-      <th>Skipped (with Reason)</th>
+      <th>Test Stage</th>
+      <th>Total Tests</th>
+      <th>Executed Tests</th>
+      <th>Passed</th>
+      <th>Failed</th>
+      <th>Skipped (No Reason Specified)</th>
+      <th>Skipped (Reason Specified)</th>
       <th>Timestamp</th>
-      <th>Link</th>
+      <th>View Report</th>
     </tr>
     {% for row in index_rows %}
       <tr>{{ row|safe }}</tr>
     {% endfor %}
   </table>
 
-  <h3>Test Coverage</h3>
+  <h3>Coverage Summary</h3>
   <table class="coverage_summary">
     <colgroup>
       <col style="width:30%">
@@ -84,59 +84,64 @@
     {% endfor %}
   </table>
 
-  <div style="margin-top:0.5rem;font-size:0.9em;">NT: Not Tested</div>
+  <div style="margin-top:0.5rem;font-size:0.9em;">NT = Not Tested</div>
 
-  <h2>Metric Definitions</h2>
+  <h2>Metrics Explained</h2>
   <table class="metric_defs">
     <colgroup>
-      <col style="width:35%">
-      <col style="width:65%">
+      <col style="width:25%">
+      <col style="width:45%">
+      <col style="width:30%">
     </colgroup>
     <tr>
       <th>Metric</th>
-      <th>Description / Formula</th>
+      <th>Description</th>
+      <th>Formula</th>
     </tr>
     <tr>
       <td>Total Tests</td>
-      <td>전체 테스트 케이스 수</td>
+      <td>Total number of test cases</td>
+      <td>—</td>
     </tr>
     <tr>
       <td>Executed Tests</td>
-      <td>실행된 테스트 케이스 수<br>
-          Formula: Total Tests − Total Skipped Tests
-      </td>
+      <td>Number of test cases that were run (excluding all skipped)</td>
+      <td>Total Tests − (Skipped (No Reason Specified) + Skipped (Reason Specified))</td>
     </tr>
     <tr>
-      <td>Success Tests</td>
-      <td>성공한 테스트 케이스 수<br>
-          Formula: Executed Tests − Total Failed Tests
-      </td>
+      <td>Passed</td>
+      <td>Number of executed test cases that passed</td>
+      <td>Executed Tests − Failed Tests</td>
     </tr>
     <tr>
-      <td>Failure Tests</td>
-      <td>실패한 테스트 케이스 수</td>
+      <td>Failed</td>
+      <td>Number of executed test cases that failed</td>
+      <td>—</td>
     </tr>
     <tr>
-      <td>Skipped (No Reason)</td>
-      <td>사유가 명시되지 않은 테스트 케이스 수<br>
-          ex) 테스트 실행 조건문으로 skip</td>
+      <td>Skipped (No Reason Specified)</td>
+      <td>Test cases skipped without a provided reason</td>
+      <td>—</td>
     </tr>
     <tr>
-      <td>Skipped (with Reason)</td>
-      <td>사유가 명시된 테스트 케이스 수<br>
-          ex) skipped message 작성된 test case</td>
+      <td>Skipped (Reason Specified)</td>
+      <td>Test cases skipped with a provided reason</td>
+      <td>—</td>
     </tr>
     <tr>
       <td>Execution Rate (%)</td>
-      <td>(Passed + Failed + Skipped with Reason) / Total × 100</td>
+      <td>Percentage of test cases executed, including skips with reason</td>
+      <td>(Passed + Failed + Skipped (Reason Specified)) / Total Tests × 100</td>
     </tr>
     <tr>
       <td>Execution Rate (without Skipped) (%)</td>
-      <td>(Passed + Failed) / Total × 100</td>
+      <td>Percentage of test cases executed out of total, excluding all skips</td>
+      <td>(Passed + Failed) / Total Tests × 100</td>
     </tr>
     <tr>
       <td>Pass Rate (%)</td>
-      <td>Passed / Total × 100</td>
+      <td>Percentage of executed tests that passed</td>
+      <td>Passed / Total Tests × 100</td>
     </tr>
   </table>
 </body>

@@ -2,18 +2,16 @@
 
 """
 HTML 보고서 생성기:
-- XML 파싱 결과를 받아 Overall Summary(메트릭 확장) 섹션 준비
-- Chart.js용 3개 차트 데이터 준비
+- XML 파싱 결과를 받아 Overall Test Summary(메트릭 확장) 섹션 준비
+- Chart.js용 3개 파이 차트 데이터 준비
 - Jinja2 템플릿 렌더링
 """
 import shutil
 from pathlib import Path
-from datetime import datetime
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from ..parser import parse_files
 from .utils import row_html, sanitize_id, jsonify
-from .chart_builder import build_chart_data  # (차트는 쓰지 않고 직접 JSON화해도 무방합니다)
 
 ICON_FILES = {
     "success":    "gtest_report_ok.png",
@@ -21,12 +19,14 @@ ICON_FILES = {
     "skipped":    "gtest_report_disable.png",
 }
 
+
 def format_icon(status: str) -> str:
     fn = ICON_FILES.get(status, ICON_FILES["skipped"])
     return (
         f'<img src="html_resources/{fn}" alt="{status}" '
         'class="icon" width="16" height="16"/>'
     )
+
 
 def render_report(
     project_name: str,
@@ -61,11 +61,11 @@ def render_report(
     res_dst.mkdir(exist_ok=True)
     shutil.copytree(res_src, res_dst, dirs_exist_ok=True)
 
-    # 5) Overall Summary 테이블 행
+    # 5) Overall Test Summary 테이블 행
     overall_rows = [
         row_html(["Total XML files", str(len(results))]),
-        row_html(["Total tests",       str(total)]),
-        row_html(["Executed tests",    str(executed)]),
+        row_html(["Total Tests",      str(total)]),
+        row_html(["Executed Tests",   str(executed)]),
         row_html([
             "Execution Rate (%)",
             f"{(passed + failures + skipped_with_reason) / total * 100:.2f}%"
@@ -81,14 +81,14 @@ def render_report(
             f"{passed / total * 100:.2f}%"
             if total else ""
         ]),
-        row_html(["Failure tests",         f'<span style="color:red;">{failures}</span>']),
-        row_html(["Skipped (No Reason)",   str(skipped_no_reason)]),
-        row_html(["Skipped (with Reason)", str(skipped_with_reason)]),
-        row_html(["Earliest timestamp",    earliest]),
+        row_html(["Failed Tests",          f'<span style="color:red;">{failures}</span>']),
+        row_html(["Skipped (No Reason Specified)",   str(skipped_no_reason)]),
+        row_html(["Skipped (Reason Specified)",      str(skipped_with_reason)]),
+        row_html(["Earliest Timestamp",    earliest]),
     ]
 
-    # 6) Failed Tests
-    failed_rows = [row_html(["Test Suite","Test Case","Result"], header=True)]
+    # 6) Failed Test Cases
+    failed_rows = [row_html(["Test Suite", "Test Case", "Result"], header=True)]
     for fr in results:
         for case in fr.cases:
             if case.status == "failed":
@@ -99,19 +99,23 @@ def render_report(
                     row_html([suite, link, format_icon(case.status)])
                 )
 
-    # 7) File Summary
-    file_rows = [row_html(["Report Name","Total","Failure","Timestamp"], header=True)]
+    # 7) Test File Summary
+    file_rows = [
+        row_html(["Test File", "Total Tests", "Failed", "Timestamp"], header=True)
+    ]
     for fr in results:
         ts = fr.timestamp.strftime("%Y-%m-%d %H:%M:%S") if fr.timestamp else ""
         fh = f'<span style="color:red;">{fr.failures}</span>' if fr.failures else "0"
         file_rows.append(
             row_html([
                 f'<a href="#detail_{fr.filename}">{fr.filename}</a>',
-                str(fr.total), fh, ts
+                str(fr.total),
+                fh,
+                ts
             ])
         )
 
-    # 8) Test Details
+    # 8) Detailed Test Results
     detail_parts: list[str] = []
     for fr in results:
         detail_parts.append(f'<h3 id="detail_{fr.filename}">{fr.filename}</h3>')
@@ -123,7 +127,7 @@ def render_report(
     <col style="width:20%;">
   </colgroup>
 """)
-        detail_parts.append(row_html(["Test Suite","Test Case","Result"], header=True))
+        detail_parts.append(row_html(["Test Suite", "Test Case", "Result"], header=True))
         for case in fr.cases:
             suite, case_name = case.name.split(".", 1)
             aid = sanitize_id(f"{fr.filename}_{case.name}")
@@ -137,11 +141,11 @@ def render_report(
     # 9) 차트용 데이터 JSON
     charts = {
         "exec_labels":      jsonify(["Execution Rate (%)"]),
-        "exec_values":      jsonify([round((passed + failures + skipped_with_reason) / total * 100,2)] if total else []),
+        "exec_values":      jsonify([round((passed + failures + skipped_with_reason) / total * 100, 2)] if total else []),
         "exec_no_skip_labels": jsonify(["Execution Rate (without Skipped) (%)"]),
-        "exec_no_skip_values": jsonify([round((passed + failures) / total * 100,2)] if total else []),
+        "exec_no_skip_values": jsonify([round((passed + failures) / total * 100, 2)] if total else []),
         "pass_labels":      jsonify(["Pass Rate (%)"]),
-        "pass_values":      jsonify([round(passed / total * 100,2)] if total else []),
+        "pass_values":      jsonify([round(passed / total * 100, 2)] if total else []),
     }
 
     # 10) 템플릿 렌더링
