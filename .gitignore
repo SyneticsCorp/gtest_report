@@ -1,3 +1,4 @@
 # exclude temporary files
 *.pyc
 out/
+in/
