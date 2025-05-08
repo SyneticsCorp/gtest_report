@@ -34,6 +34,12 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 {overall_summary}
 </table>
 
+<!-- Bar Chart -->
+<div class="charts" style="text-align:center; margin:1rem 0;">
+  <img src="html_resources/rate_bar.png" alt="Execution and Success Rates">
+</div>
+
+<h2>Failed Tests</h2>
 {failed_section}
 
 <h2>File Summary</h2>
@@ -62,6 +68,13 @@ def row_html(cells: list[str], header: bool=False) -> str:
 
 def sanitize_id(text: str) -> str:
     return ''.join(c if c.isalnum() or c=='_' else '_' for c in text)
+
+
+def split_test_name(full_name: str) -> tuple[str,str]:
+    parts = full_name.split('.', 1)
+    if len(parts) == 2:
+        return parts[0], parts[1]
+    return '', full_name
 
 
 def generate_report(
@@ -96,7 +109,7 @@ def generate_report(
     plt.close()
 
     # summary percentages
-    exec_pct = f"{executed/total*100:.2f}%" if total else "0.00%"
+    exec_pct    = f"{executed/total*100:.2f}%" if total else "0.00%"
     success_pct = f"{successes/total*100:.2f}%" if total else "0.00%"
 
     # build overall summary rows
@@ -121,19 +134,14 @@ def generate_report(
                 test_id = sanitize_id(f"{res.filename}_{case.name}")
                 link = f'<a href="#test_{test_id}">{case.name}</a>'
                 failed_rows.append(row_html([res.filename, link]))
-    # include heading always
     if len(failed_rows) > 1:
         failed_section = (
-            '<h2>Failed Tests</h2>\n'
-            + '<table class="failed_tests">\n'
+            '<table class="failed_tests">\n'
             + ''.join(failed_rows)
             + '</table>\n'
         )
     else:
-        failed_section = (
-            '<h2>Failed Tests</h2>\n'
-            '<div>No failed tests</div>\n'
-        )
+        failed_section = '<div>No failed tests</div>\n'
 
     # file summary rows
     file_rows = []
@@ -148,24 +156,28 @@ def generate_report(
         ]))
     file_summary = ''.join(file_rows)
 
-    # test details by file
+    # test details by file with split suite/case
     detail_parts = []
     for res in results:
         detail_parts.append(f'<h3 id="detail_{res.filename}">{res.filename}</h3>\n')
-        detail_parts.append("""
+        detail_parts.append(
+"""
 <table class="utests" style="width:100%; table-layout:fixed;">
  <colgroup>
-   <col style="width:auto;">
-   <col style="width:9ch; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">
+   <col style="width:40%;">
+   <col style="width:40%;">
+   <col style="width:20%;">
  </colgroup>
 """
         )
-        detail_parts.append(row_html(['Test name', 'Result'], header=True))
+        detail_parts.append(row_html(['Test Suite', 'Test Case', 'Result'], header=True))
         for case in res.cases:
+            suite, case_name = split_test_name(case.name)
             row_id = f'test_{sanitize_id(res.filename)}_{sanitize_id(case.name)}'
             detail_parts.append(
                 f'<tr id="{row_id}">'
-                f'<td>{case.name}</td>'
+                f'<td>{suite}</td>'
+                f'<td>{case_name}</td>'
                 f'<td>{format_icon(case.status)}</td>'
                 '</tr>\n'
             )
