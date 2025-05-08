@@ -1,4 +1,4 @@
-# File: scripts/parser.py
+# scripts/parser.py
 """
 Parses Google Test XML files into structured Python objects.
 """
@@ -24,58 +24,61 @@ class TestFileResult:
         timestamp: datetime | None,
         cases: list[TestCaseResult]
     ):
-        self.filename = filename
-        self.total = total
-        self.failures = failures
-        self.skipped = skipped
-        self.duration = duration
+        self.filename  = filename
+        self.total     = total
+        self.failures  = failures
+        self.skipped   = skipped
+        self.duration  = duration
         self.timestamp = timestamp
-        self.cases = cases
+        self.cases     = cases
 
 def parse_file(xml_path: str) -> TestFileResult:
-    """
-    Parse a single Google Test XML file and return a TestFileResult.
-    """
     try:
         dom = parse(xml_path)
     except ExpatError as e:
         raise RuntimeError(f"Failed to parse {xml_path}: {e}")
 
-    # Identify root <testsuites> or <testsuite>
-    suites = dom.getElementsByTagName("testsuites") or dom.getElementsByTagName("testsuite")
+    # root <testsuites> or <testsuite>
+    suites = dom.getElementsByTagName("testsuites") \
+             or dom.getElementsByTagName("testsuite")
     if not suites:
         raise RuntimeError(f"No <testsuites> or <testsuite> in {xml_path}")
     root = suites[0]
-    suite_nodes = (
-        root.getElementsByTagName("testsuite")
-        if root.tagName == "testsuites"
-        else [root]
-    )
 
-    failures = 0
-    total_time = 0.0
-    skipped_count = 0
+    # collect timestamps
     timestamps: list[datetime] = []
+    def add_ts(node):
+        # look for both "timestamp" and (legacy) "timestamps"
+        for attr in ("timestamp", "timestamps"):
+            if node.hasAttribute(attr):
+                s = node.getAttribute(attr)
+                # strip trailing 'Z'
+                if s.endswith("Z"):
+                    s = s[:-1]
+                try:
+                    # original format was YYYY-MM-DDTHH:MM:SS
+                    dt = datetime.fromisoformat(s)
+                    timestamps.append(dt)
+                except ValueError:
+                    pass
+    # root
+    add_ts(root)
+    # any nested <testsuite>
+    nodes = (root.getElementsByTagName("testsuite")
+             if root.tagName == "testsuites" else [root])
+    for suite in nodes:
+        add_ts(suite)
 
-    def add_timestamp(node):
-        if node.hasAttribute("timestamp"):
-            try:
-                ts = datetime.fromisoformat(node.getAttribute("timestamp"))
-                timestamps.append(ts)
-            except ValueError:
-                pass
+    # failures & total_time
+    failures = sum(int(n.getAttribute("failures") or 0) for n in nodes)
+    total_time = sum(float(n.getAttribute("time") or 0.0) for n in nodes)
 
-    add_timestamp(root)
-    for suite in suite_nodes:
-        failures += int(suite.getAttribute("failures") or 0)
-        total_time += float(suite.getAttribute("time") or 0.0)
-        add_timestamp(suite)
-
-    # Parse individual testcases
+    # per-test-case results
     testcases = dom.getElementsByTagName("testcase")
+    skipped_count = 0
     cases: list[TestCaseResult] = []
     for tc in testcases:
-        name = f"{tc.getAttribute('classname')}.{tc.getAttribute('name')}"
+        fullname = f"{tc.getAttribute('classname')}.{tc.getAttribute('name')}"
         elapsed = float(tc.getAttribute("time") or 0.0)
         if tc.getElementsByTagName("skipped"):
             status = 'skipped'
@@ -84,36 +87,29 @@ def parse_file(xml_path: str) -> TestFileResult:
             status = 'failed'
         else:
             status = 'success'
-        cases.append(TestCaseResult(name, elapsed, status))
+        cases.append(TestCaseResult(fullname, elapsed, status))
 
-    timestamp = min(timestamps) if timestamps else None
+    earliest = min(timestamps) if timestamps else None
     return TestFileResult(
         filename=os.path.basename(xml_path),
         total=len(testcases),
         failures=failures,
         skipped=skipped_count,
         duration=total_time,
-        timestamp=timestamp,
+        timestamp=earliest,
         cases=cases,
     )
 
 def parse_files(xml_paths: list[str]) -> tuple[list[TestFileResult], int, int, int, list[datetime]]:
-    """
-    Parse multiple XML files and aggregate overall statistics.
-    Returns:
-      (list of TestFileResult, total_tests, total_failures, total_skipped, all_timestamps)
-    """
-    results: list[TestFileResult] = []
-    total_tests = total_failures = total_skipped = 0
-    all_timestamps: list[datetime] = []
-
-    for path in xml_paths:
-        result = parse_file(path)
-        results.append(result)
-        total_tests += result.total
-        total_failures += result.failures
-        total_skipped += result.skipped
-        if result.timestamp:
-            all_timestamps.append(result.timestamp)
-
-    return results, total_tests, total_failures, total_skipped, all_timestamps
+    results = []
+    tot = fails = skip = 0
+    all_ts: list[datetime] = []
+    for p in xml_paths:
+        res = parse_file(p)
+        results.append(res)
+        tot   += res.total
+        fails += res.failures
+        skip  += res.skipped
+        if res.timestamp:
+            all_ts.append(res.timestamp)
+    return results, tot, fails, skip, all_ts

@@ -1,13 +1,13 @@
-# File: scripts/generator.py
+# scripts/generator.py
 """
 Generates an HTML report from parsed test data and copies necessary resources.
 """
 import os
 import shutil
-from datetime import datetime
 from parser import parse_files
+from datetime import datetime
 
-# Resources directory under scripts/html_resources
+# resources under scripts/html_resources/
 RESOURCES_DIR = os.path.join(os.path.dirname(__file__), 'html_resources')
 ICON_FILES = {
     'success': 'gtest_report_ok.png',
@@ -15,7 +15,7 @@ ICON_FILES = {
     'skipped': 'gtest_report_disable.png'
 }
 
-HTML_TEMPLATE = '''<!DOCTYPE html>
+HTML_TEMPLATE = """<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -33,7 +33,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 
 <h2>File Summary</h2>
 <table class="file_summary">
-<tr><th>Report name</th><th>Total</th><th>Fail</th><th>Skipped</th><th>Duration</th><th>Timestamp</th></tr>
+<tr><th>Report name</th><th>Total unit tests</th><th>Failure</th><th>Duration</th><th>Timestamp</th></tr>
 {file_summary}
 </table>
 
@@ -41,71 +41,60 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 {test_details}
 
 </body>
-</html>'''
+</html>"""
 
 def format_icon(status: str) -> str:
-    """
-    Return an <img> tag for the given status.
-    """
-    icon_file = ICON_FILES.get(status, ICON_FILES['skipped'])
-    return (
-        f'<img src="html_resources/{icon_file}" '
-        f'alt="{status}" class="icon" width="16" height="16"/>'
-    )
+    fn = ICON_FILES.get(status, ICON_FILES['skipped'])
+    return f'<img src="html_resources/{fn}" alt="{status}" class="icon" width="16" height="16"/>'
 
-def row_html(cells: list[str], header: bool = False) -> str:
-    """
-    Generate a single table row, using <th> for headers or <td> for data.
-    """
+def row_html(cells: list[str], header: bool=False) -> str:
     tag = 'th' if header else 'td'
-    parts = []
-    for c in cells:
-        parts.append(f'<{tag}>{c}</{tag}>')
-    return '<tr>' + ''.join(parts) + '</tr>\n'
+    inner = ''.join(f'<{tag}>{c}</{tag}>' for c in cells)
+    return f'<tr>{inner}</tr>\n'
 
 def generate_report(
     project_name: str,
     report_name: str,
     xml_paths: list[str],
     output_path: str
-) -> None:
-    # 1) Parse XML files
-    results, total, failures, skipped, timestamps = parse_files(xml_paths)
-    executed   = total - skipped
-    successes  = executed - failures
-    earliest_ts = min(timestamps).isoformat() if timestamps else ''
+):
+    # parse
+    results, total, failures, skipped, all_ts = parse_files(xml_paths)
+    executed = total - skipped
+    successes = executed - failures
+    # earliest timestamp
+    earliest = min(all_ts).strftime("%Y-%m-%dT%H:%M:%S") if all_ts else ''
 
-    # 2) Build Overall Summary
-    overall_rows = [
+    # overall summary
+    overall = [
         row_html(['Total XML files',    str(len(results))]),
         row_html(['Total tests',        str(total)]),
         row_html(['Executed tests',     str(executed)]),
         row_html(['Success tests',      str(successes)]),
         row_html(['Failure tests',      str(failures)]),
         row_html(['Skipped tests',      str(skipped)]),
-        row_html(['Earliest timestamp', earliest_ts]),
+        row_html(['Earliest timestamp', earliest]),
     ]
-    overall_summary = ''.join(overall_rows)
+    overall_summary = ''.join(overall)
 
-    # 3) Build File Summary
-    file_rows = []
+    # file summary
+    files_html = []
     for res in results:
-        ts_str = res.timestamp.isoformat() if res.timestamp else ''
-        file_rows.append(row_html([
+        ts = res.timestamp.strftime("%Y-%m-%dT%H:%M:%S") if res.timestamp else ''
+        files_html.append(row_html([
             f'<a href="#detail_{res.filename}">{res.filename}</a>',
             str(res.total),
             str(res.failures),
-            str(res.skipped),
             f"{res.duration:.2f}",
-            ts_str
+            ts
         ]))
-    file_summary = ''.join(file_rows)
+    file_summary = ''.join(files_html)
 
-    # 4) Build Test Details by File (with original colgroup)
-    detail_parts = []
+    # details
+    details = []
     for res in results:
-        detail_parts.append(f'<h3 id="detail_{res.filename}">{res.filename}</h3>\n')
-        detail_parts.append("""
+        details.append(f'<h3 id="detail_{res.filename}">{res.filename}</h3>\n')
+        details.append("""
 <table class="utests" style="width:100%; table-layout:fixed;">
  <colgroup>
    <col style="width:auto;">
@@ -113,33 +102,29 @@ def generate_report(
    <col style="width:9ch;  overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">
  </colgroup>
 """)
-        # Header
-        detail_parts.append(row_html(['Test name', 'Duration', 'Result'], header=True))
-        # Data rows
+        details.append(row_html(['Test name', 'Duration', 'Result'], header=True))
         for case in res.cases:
-            detail_parts.append(row_html([
+            details.append(row_html([
                 case.name,
                 f"{case.time:.2f}",
                 format_icon(case.status)
             ]))
-        detail_parts.append("</table><br/>\n")
-    test_details = ''.join(detail_parts)
+        details.append("</table><br/>\n")
+    test_details = ''.join(details)
 
-    # 5) Fill HTML template
+    # fill & write
     title = f"{project_name} {report_name} Report"
-    html_content = HTML_TEMPLATE.format(
+    html = HTML_TEMPLATE.format(
         title=title,
         overall_summary=overall_summary,
         file_summary=file_summary,
         test_details=test_details
     )
-
-    # 6) Write HTML output
     out_dir = os.path.dirname(output_path) or '.'
     os.makedirs(out_dir, exist_ok=True)
     with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(html_content)
+        f.write(html)
 
-    # 7) Copy resources (CSS/JS/Icons)
-    dest_res = os.path.join(out_dir, 'html_resources')
-    shutil.copytree(RESOURCES_DIR, dest_res, dirs_exist_ok=True)
+    # copy resources
+    dest = os.path.join(out_dir, 'html_resources')
+    shutil.copytree(RESOURCES_DIR, dest, dirs_exist_ok=True)
