@@ -1,4 +1,3 @@
-<!-- File: gtest_report/templates/index.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -8,26 +7,137 @@
 </head>
 <body>
   <h1>{{ project_name }} Test Report</h1>
+
+  {# Jenkins build info #}
+  {% if branch or release_tag or commit_id or build_number or report_date %}
+  <table class="build_info">
+    {% if branch and build_number %}
+    <tr><th>Version</th><td>{{ project_name }}_{{ branch }}_#{{ build_number }}</td></tr>
+    {% endif %}
+    {% if release_tag %}
+    <tr><th>Release</th><td>{{ release_tag }}</td></tr>
+    {% endif %}
+    {% if commit_id %}
+    <tr><th>Commit ID</th><td>{{ commit_id }}</td></tr>
+    {% endif %}
+    {% if build_number %}
+    <tr><th>#Build</th><td>{{ build_number }}</td></tr>
+    {% endif %}
+    {% if report_date %}
+    <tr><th>Date</th><td>{{ report_date }}</td></tr>
+    {% endif %}
+  </table>
+  {% endif %}
+
+  <h2>Overall Results</h2>
+
+  <h3>Summary by Test Stage</h3>
   <table class="index_summary">
     <colgroup>
-      <col style="width:20%">
+      <col style="width:18%">
+      <col style="width:8%">
+      <col style="width:8%">
+      <col style="width:8%">
+      <col style="width:8%">
       <col style="width:10%">
       <col style="width:10%">
-      <col style="width:10%">
-      <col style="width:10%">
-      <col style="width:10%">
-      <col style="width:20%">
-      <col style="width:10%">
+      <col style="width:18%">
+      <col style="width:12%">
     </colgroup>
     <tr>
-      <th>Report Type</th><th>Total</th><th>Executed</th>
-      <th>Success</th><th>Failure</th><th>Skipped</th>
-      <th>Timestamp</th><th>Link</th>
+      <th>Report Type</th>
+      <th>Total</th>
+      <th>Executed</th>
+      <th>Success</th>
+      <th>Failure</th>
+      <th>Skipped (No Reason)</th>
+      <th>Skipped (with Reason)</th>
+      <th>Timestamp</th>
+      <th>Link</th>
     </tr>
     {% for row in index_rows %}
       <tr>{{ row|safe }}</tr>
     {% endfor %}
   </table>
+
+  <h3>Test Coverage</h3>
+  <table class="coverage_summary">
+    <colgroup>
+      <col style="width:30%">
+      <col style="width:23%">
+      <col style="width:23%">
+      <col style="width:24%">
+    </colgroup>
+    <tr>
+      <th>Test Stage</th>
+      <th>Execution Rate (%)</th>
+      <th>Execution Rate (without Skipped) (%)</th>
+      <th>Pass Rate (%)</th>
+    </tr>
+    {% for cov in coverage_rows %}
+    <tr>
+      <td>{{ cov.stage }}</td>
+      <td>{{ cov.exec_rate }}</td>
+      <td>{{ cov.exec_no_skip }}</td>
+      <td>{{ cov.pass_rate }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
   <div style="margin-top:0.5rem;font-size:0.9em;">NT: Not Tested</div>
+
+  <h2>Metric Definitions</h2>
+  <table class="metric_defs">
+    <colgroup>
+      <col style="width:35%">
+      <col style="width:65%">
+    </colgroup>
+    <tr>
+      <th>Metric</th>
+      <th>Description / Formula</th>
+    </tr>
+    <tr>
+      <td>Total Tests</td>
+      <td>전체 테스트 케이스 수</td>
+    </tr>
+    <tr>
+      <td>Executed Tests</td>
+      <td>실행된 테스트 케이스 수<br>
+          Formula: Total Tests − Total Skipped Tests
+      </td>
+    </tr>
+    <tr>
+      <td>Success Tests</td>
+      <td>성공한 테스트 케이스 수<br>
+          Formula: Executed Tests − Total Failed Tests
+      </td>
+    </tr>
+    <tr>
+      <td>Failure Tests</td>
+      <td>실패한 테스트 케이스 수</td>
+    </tr>
+    <tr>
+      <td>Skipped (No Reason)</td>
+      <td>사유가 명시되지 않은 테스트 케이스 수<br>
+          ex) 테스트 실행 조건문으로 skip</td>
+    </tr>
+    <tr>
+      <td>Skipped (with Reason)</td>
+      <td>사유가 명시된 테스트 케이스 수<br>
+          ex) skipped message 작성된 test case</td>
+    </tr>
+    <tr>
+      <td>Execution Rate (%)</td>
+      <td>(Passed + Failed + Skipped with Reason) / Total × 100</td>
+    </tr>
+    <tr>
+      <td>Execution Rate (without Skipped) (%)</td>
+      <td>(Passed + Failed) / Total × 100</td>
+    </tr>
+    <tr>
+      <td>Pass Rate (%)</td>
+      <td>Passed / Total × 100</td>
+    </tr>
+  </table>
 </body>
 </html>

@@ -1,128 +1,122 @@
-/* 구글 폰트 적용 */
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap');
+/* File: gtest_report/html_resources/gtest_report.css */
 
+/* 기본 텍스트 및 링크 스타일 */
 body {
-    font-family: 'Open Sans', sans-serif;
-    background-color: #f9f9fb;
+    font-family: Arial, sans-serif;
+    margin: 1rem;
     color: #333;
-    margin: 2rem;
-    line-height: 1.6;
-}
-
-h1, h2 {
-    color: #2c3e50;
-    border-bottom: 2px solid #e1e1e1;
-    padding-bottom: 0.3em;
-    margin-top: 2em;
-    margin-bottom: 1em;
-    text-align: left; /* 제목 왼쪽 정렬 */
-}
-
-/* h3도 왼쪽 정렬 */
-h3 {
-    color: #2c3e50;
-    border-bottom: 1px solid #e1e1e1;
-    padding-bottom: 0.2em;
-    margin-top: 1em;
-    margin-bottom: 0.5em;
-    text-align: left;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1.5em 0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    background-color: #fff;
-}
-
-th, td {
-    text-align: left;
-    padding: 0.75em 1em;
-    border-bottom: 1px solid #eee;
-    word-wrap: break-word;
-}
-
-th {
-    background-color: #f0f3f6;
-    font-weight: 600;
-    color: #2c3e50;
-}
-
-tr:nth-child(even) td {
-    background-color: #f9fbfc;
-}
-
-tr:hover td {
-    background-color: #eef6ff;
-}
-
-/* 실패한 항목: 글자색만 빨간색, 아이콘 포함 가운데 정렬 */
-.failed {
-    color: #e74c3c;
-    font-weight: bold;
-    text-align: center; 
-}
-
-/* 성공도 가운데 정렬 */
-.run {
-    text-align: center;
-    color: #2ecc71;
-}
-
-/* 미실행도 가운데 정렬 */
-.notrun {
-    text-align: center;
-    color: #f39c12;
-}
-
-a {
-    color: #3498db;
+    line-height: 1.4;
+  }
+  a {
+    color: #007acc;
     text-decoration: none;
-}
-
-a:hover {
+  }
+  a:hover {
     text-decoration: underline;
-}
-
-img {
+  }
+  
+  /* 아이콘(성공/실패/스킵) 스타일 */
+  .icon {
     vertical-align: middle;
-}
-
-pre {
-    background-color: #f8f8f8;
-    border-left: 3px solid #ccc;
-    padding: 0.5em;
-    overflow-x: auto;
-}
-
-input[type="image"] {
-    cursor: pointer;
-}
-
-/* Test Details 표의 두 번째, 세 번째 열 한 줄 표시 */
-.utests td:nth-child(2),
-.utests td:nth-child(3) {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.icon {
     width: 16px;
     height: 16px;
-    vertical-align: middle;
   }
-
-@media screen and (max-width: 768px) {
-    body {
-        margin: 1rem;
-        font-size: 0.95em;
+  
+  /* 공통 테이블 스타일 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+  }
+  table th,
+  table td {
+    border: 1px solid #ccc;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+  }
+  table th {
+    background-color: #f5f5f5;
+    font-weight: bold;
+  }
+  table tr:nth-child(even) td {
+    background-color: #fafafa;
+  }
+  
+  /* 인덱스 요약용 */
+  .index_summary { }
+  .index_summary th,
+  .index_summary td { }
+  
+  /* Overall Summary */
+  .overall_summary { }
+  .overall_summary th,
+  .overall_summary td { }
+  
+  /* File Summary */
+  .file_summary { }
+  .file_summary th,
+  .file_summary td { }
+  
+  /* Failed Tests */
+  .failed_tests { }
+  .failed_tests th,
+  .failed_tests td { }
+  
+  /* Test Details */
+  .utests { }
+  .utests th,
+  .utests td { }
+  
+  /* Jenkins 빌드 정보 테이블 */
+  .build_info {
+    width: auto;
+    margin-bottom: 1.5rem;
+    border-collapse: collapse;
+  }
+  .build_info th,
+  .build_info td {
+    border: 1px solid #ccc;
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+  }
+  .build_info th {
+    background-color: #e8e8e8;
+    width: 120px;
+    font-weight: normal;
+  }
+  
+  /* 검색 & 필터 입력 스타일 */
+  #searchInput {
+    padding: 0.3rem 0.5rem;
+    margin-right: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+  }
+  #failOnlyToggle {
+    margin-left: 0.5rem;
+  }
+  
+  /* 차트 컨테이너 (별도 CSS 없는 경우 inline style 활용 가능) */
+  
+  /* 반응형: 화면이 좁아지면 차트를 세로로 배치 */
+  @media (max-width: 600px) {
+    .chart-container {
+      flex-direction: column;
     }
-    th, td {
-        padding: 0.5em;
-    }
-    h1 {
-        font-size: 1.5em;
-    }
-}
+  }
+  
+  /* Metric Definitions 테이블 */
+  .metric_defs {
+    margin-bottom: 1.5rem;
+  }
+  .metric_defs th,
+  .metric_defs td {
+    border: 1px solid #ccc;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+  }
+  .metric_defs th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+  }
+  
