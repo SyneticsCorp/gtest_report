@@ -9,10 +9,10 @@ from datetime import datetime
 from pathlib import Path
 
 class TestCaseResult:
-    def __init__(self, name: str, time: float, status: str, failure_message: str=""):
-        self.name            = name
-        self.time            = time
-        self.status          = status
+    def __init__(self, name: str, time: float, status: str, failure_message: str = ""):
+        self.name = name
+        self.time = time
+        self.status = status
         self.failure_message = failure_message
 
 class TestFileResult:
@@ -47,19 +47,26 @@ def parse_file(xml_path: Path | str) -> TestFileResult:
         raise RuntimeError(f"No <testsuites> or <testsuite> in {path_str}")
     root = suites[0]
 
-    # timestamp 수집
+    # timestamp 수집: 'timestamp' 및 'timestamps' 속성 모두 체크
     timestamps: list[datetime] = []
     def collect_ts(node):
-        if node.hasAttribute("timestamp"):
-            s = node.getAttribute("timestamp")
-            if s.endswith("Z"):
-                s = s[:-1]
-            try:
-                timestamps.append(datetime.fromisoformat(s))
-            except ValueError:
-                pass
+        for attr in ("timestamp", "timestamps"):
+            if node.hasAttribute(attr):
+                s = node.getAttribute(attr)
+                # ISO 형식 끝에 Z 있으면 제거
+                if s.endswith("Z"):
+                    s = s[:-1]
+                try:
+                    timestamps.append(datetime.fromisoformat(s))
+                except ValueError:
+                    pass
+
     collect_ts(root)
-    suite_nodes = root.getElementsByTagName("testsuite") if root.tagName=="testsuites" else [root]
+    suite_nodes = (
+        root.getElementsByTagName("testsuite")
+        if root.tagName == "testsuites"
+        else [root]
+    )
     for suite in suite_nodes:
         collect_ts(suite)
 

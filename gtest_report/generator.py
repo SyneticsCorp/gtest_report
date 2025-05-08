@@ -1,9 +1,9 @@
 # File: gtest_report/generator.py
-
 """
 Generates an HTML report from parsed test data and copies necessary resources.
-- Bar chart 생성: matplotlib
-- 템플릿 렌더링: Jinja2 + FileSystemLoader
+- Uses pathlib for all path operations
+- Loads Jinja2 templates via FileSystemLoader from gtest_report/templates
+- Generates execution/success bar chart with matplotlib
 Requires: pip install matplotlib jinja2
 """
 from pathlib import Path
@@ -14,7 +14,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from .parser import parse_files
 
-# 리소스 경로
+# resources under gtest_report/html_resources/
 RESOURCES_DIR = Path(__file__).parent / 'html_resources'
 ICON_FILES    = {
     'success': 'gtest_report_ok.png',
@@ -43,19 +43,19 @@ def generate_report(
     xml_paths: list[Path],
     output_path: Path
 ):
-    # 파싱
+    # parse test results
     results, total, failures, skipped, timestamps = parse_files(xml_paths)
     executed  = total - skipped
     successes = executed - failures
     earliest  = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ''
 
-    # 출력 폴더 및 리소스 복사
+    # prepare output & copy static resources
     output_path.parent.mkdir(parents=True, exist_ok=True)
     res_dir = output_path.parent / 'html_resources'
     if not res_dir.exists():
         shutil.copytree(RESOURCES_DIR, res_dir)
 
-    # 막대 차트 생성
+    # generate horizontal bar chart
     values = [executed/total*100 if total else 0,
               successes/total*100 if total else 0]
     fig, ax = plt.subplots(figsize=(4,1.5))
@@ -67,7 +67,7 @@ def generate_report(
     plt.savefig(res_dir/'rate_bar.png', bbox_inches='tight')
     plt.close()
 
-    # Overall Summary 테이블 행
+    # build overall summary rows
     overall_rows = [
         row_html(['Total XML files',    str(len(results))]),
         row_html(['Total tests',        str(total)]),
@@ -80,7 +80,7 @@ def generate_report(
         row_html(['Earliest timestamp', earliest])
     ]
 
-    # Failed Tests 테이블 행
+    # build failed tests rows
     failed_rows = [row_html(['Report Name','Test Name'], header=True)]
     for res in results:
         for case in res.cases:
@@ -89,7 +89,7 @@ def generate_report(
                 link    = f'<a href="#test_{test_id}">{case.name}</a>'
                 failed_rows.append(row_html([res.filename, link]))
 
-    # File Summary 테이블 행
+    # build file summary rows
     file_rows = []
     for res in results:
         ts = res.timestamp.strftime("%Y-%m-%d %H:%M:%S") if res.timestamp else ''
@@ -101,7 +101,7 @@ def generate_report(
             ts
         ]))
 
-    # Test Details by File (Suite / Case / Result)
+    # build test details (suite / case / result)
     detail_parts = []
     for res in results:
         detail_parts.append(f'<h3 id="detail_{res.filename}">{res.filename}</h3>')
@@ -126,14 +126,14 @@ def generate_report(
             )
         detail_parts.append('</table><br/>')
 
-    # report.html 렌더링
+    # render report.html via FileSystemLoader
     tpl_dir = Path(__file__).parent / 'templates'
     env     = Environment(
         loader=FileSystemLoader(str(tpl_dir)),
         autoescape=select_autoescape(['html'])
     )
-    tpl  = env.get_template('report.html')
-    html = tpl.render(
+    tpl     = env.get_template('report.html')
+    html    = tpl.render(
         title=f"{project_name} {report_name}",
         overall_rows=overall_rows,
         failed_rows=failed_rows,

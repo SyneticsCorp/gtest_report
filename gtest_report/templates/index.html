@@ -19,12 +19,18 @@
       <col style="width:10%">
     </colgroup>
     <tr>
-      <th>Report Type</th><th>Total Tests</th><th>Executed</th>
-      <th>Success</th><th>Failure</th><th>Skipped</th>
-      <th>Timestamp</th><th>Link</th>
+      <th>Report Type</th>
+      <th>Total Tests</th>
+      <th>Executed</th>
+      <th>Success</th>
+      <th>Failure</th>
+      <th>Skipped</th>
+      <th>Timestamp</th>
+      <th>Link</th>
     </tr>
-    {% for row in index_rows %}
-      <tr>{{ row|safe }}</tr>
+    {# index_rows에는 순수 <td>…</td> 문자열만 들어있습니다 #}
+    {% for row_cells in index_rows %}
+      <tr>{{ row_cells|safe }}</tr>
     {% endfor %}
   </table>
   <div style="margin-top:0.5rem;font-size:0.9em;">NT: Not Tested</div>
