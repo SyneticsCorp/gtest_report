@@ -1,0 +1,2 @@
+recursive-include gtest_report/templates *.html
+recursive-include gtest_report/html_resources *
