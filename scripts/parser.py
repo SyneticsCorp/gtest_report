@@ -1,4 +1,4 @@
-# scripts/parser.py
+# File: scripts/parser.py
 """
 Parses Google Test XML files into structured Python objects.
 """
@@ -8,10 +8,11 @@ from xml.parsers.expat import ExpatError
 from datetime import datetime
 
 class TestCaseResult:
-    def __init__(self, name: str, time: float, status: str):
+    def __init__(self, name: str, time: float, status: str, failure_message: str = ""):
         self.name = name
         self.time = time
-        self.status = status  # 'success', 'failed', or 'skipped'
+        self.status = status        # 'success', 'failed', or 'skipped'
+        self.failure_message = failure_message
 
 class TestFileResult:
     def __init__(
@@ -39,8 +40,7 @@ def parse_file(xml_path: str) -> TestFileResult:
         raise RuntimeError(f"Failed to parse {xml_path}: {e}")
 
     # root <testsuites> or <testsuite>
-    suites = dom.getElementsByTagName("testsuites") \
-             or dom.getElementsByTagName("testsuite")
+    suites = dom.getElementsByTagName("testsuites") or dom.getElementsByTagName("testsuite")
     if not suites:
         raise RuntimeError(f"No <testsuites> or <testsuite> in {xml_path}")
     root = suites[0]
@@ -48,46 +48,54 @@ def parse_file(xml_path: str) -> TestFileResult:
     # collect timestamps
     timestamps: list[datetime] = []
     def add_ts(node):
-        # look for both "timestamp" and (legacy) "timestamps"
         for attr in ("timestamp", "timestamps"):
             if node.hasAttribute(attr):
                 s = node.getAttribute(attr)
-                # strip trailing 'Z'
                 if s.endswith("Z"):
                     s = s[:-1]
                 try:
-                    # original format was YYYY-MM-DDTHH:MM:SS
                     dt = datetime.fromisoformat(s)
                     timestamps.append(dt)
                 except ValueError:
                     pass
-    # root
     add_ts(root)
-    # any nested <testsuite>
-    nodes = (root.getElementsByTagName("testsuite")
-             if root.tagName == "testsuites" else [root])
-    for suite in nodes:
+    suite_nodes = root.getElementsByTagName("testsuite") if root.tagName=="testsuites" else [root]
+    for suite in suite_nodes:
         add_ts(suite)
 
     # failures & total_time
-    failures = sum(int(n.getAttribute("failures") or 0) for n in nodes)
-    total_time = sum(float(n.getAttribute("time") or 0.0) for n in nodes)
+    failures   = sum(int(n.getAttribute("failures") or 0)  for n in suite_nodes)
+    total_time = sum(float(n.getAttribute("time") or 0.0) for n in suite_nodes)
 
-    # per-test-case results
+    # parse testcases
     testcases = dom.getElementsByTagName("testcase")
     skipped_count = 0
     cases: list[TestCaseResult] = []
     for tc in testcases:
         fullname = f"{tc.getAttribute('classname')}.{tc.getAttribute('name')}"
-        elapsed = float(tc.getAttribute("time") or 0.0)
-        if tc.getElementsByTagName("skipped"):
-            status = 'skipped'
-            skipped_count += 1
-        elif tc.getElementsByTagName("failure"):
+        elapsed  = float(tc.getAttribute("time") or 0.0)
+
+        # determine status & capture failure message
+        failure_nodes = tc.getElementsByTagName("failure")
+        if failure_nodes:
             status = 'failed'
+            node   = failure_nodes[0]
+            msg_attr = node.getAttribute("message") or ""
+            # 안전하게 텍스트 노드 추출
+            if node.firstChild and node.firstChild.nodeValue:
+                msg_text = node.firstChild.nodeValue
+            else:
+                msg_text = ""
+            failure_message = (msg_attr + "\n" + msg_text).strip()
+        elif tc.getElementsByTagName("skipped"):
+            status          = 'skipped'
+            skipped_count  += 1
+            failure_message = ""
         else:
-            status = 'success'
-        cases.append(TestCaseResult(fullname, elapsed, status))
+            status          = 'success'
+            failure_message = ""
+
+        cases.append(TestCaseResult(fullname, elapsed, status, failure_message))
 
     earliest = min(timestamps) if timestamps else None
     return TestFileResult(
