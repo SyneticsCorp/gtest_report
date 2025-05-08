@@ -10,6 +10,10 @@
 python .\scripts\genHtmlReportFromGtest.py "Project Name" "Test Name" out\report.html in\*.xml
 ```
 
+# 라이브러리 설치
+```
+pip install matplotlib
+```
 
 
 --- 기존 설명 ---

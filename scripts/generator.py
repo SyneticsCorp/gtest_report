@@ -1,13 +1,14 @@
 # File: scripts/generator.py
 """
 Generates an HTML report from parsed test data and copies necessary resources.
-(Includes a table of failed tests with Test Name links, File Summary with working Report Name links,
-and highlights failure counts in red where appropriate.)
+(Includes a horizontal bar chart of execution and success rates under Overall Summary using matplotlib.)
+Requires matplotlib: install via `pip install matplotlib`
 """
 import os
 import shutil
 from parser import parse_files
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 # resources under scripts/html_resources/
 RESOURCES_DIR = os.path.join(os.path.dirname(__file__), 'html_resources')
@@ -17,29 +18,34 @@ ICON_FILES = {
     'skipped': 'gtest_report_disable.png'
 }
 
-HTML_TEMPLATE = """<!DOCTYPE html>
+HTML_TEMPLATE = '''<!DOCTYPE html>
 <html>
 <head>
-  <meta charset=\"UTF-8\">
+  <meta charset="UTF-8">
   <title>{title}</title>
-  <link rel=\"stylesheet\" href=\"html_resources/gtest_report.css\">
-  <script src=\"html_resources/extraScript.js\"></script>
+  <link rel="stylesheet" href="html_resources/gtest_report.css">
+  <script src="html_resources/extraScript.js"></script>
 </head>
 <body>
 <h1>{title}</h1>
 
 <h2>Overall Summary</h2>
-<table class=\"overall_summary\">
+<table class="overall_summary">
 {overall_summary}
 </table>
 
+<!-- Bar Chart -->
+<div class="charts" style="text-align:center; margin:1rem 0;">
+  <img src="html_resources/rate_bar.png" alt="Execution and Success Rates">
+</div>
+
 <h2>Failed Tests</h2>
-<table class=\"failed_tests\">
+<table class="failed_tests">
 {failed_table}
 </table>
 
 <h2>File Summary</h2>
-<table class=\"file_summary\">
+<table class="file_summary">
 <tr><th>Report name</th><th>Total unit tests</th><th>Failure</th><th>Timestamp</th></tr>
 {file_summary}
 </table>
@@ -48,11 +54,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 {test_details}
 
 </body>
-</html>"""
+</html>'''
+
 
 def format_icon(status: str) -> str:
     fn = ICON_FILES.get(status, ICON_FILES['skipped'])
-    return f'<img src=\"html_resources/{fn}\" alt=\"{status}\" class=\"icon\" width=\"16\" height=\"16\"/>'
+    return f'<img src="html_resources/{fn}" alt="{status}" class="icon" width="16" height="16"/>'
 
 
 def row_html(cells: list[str], header: bool=False) -> str:
@@ -77,15 +84,40 @@ def generate_report(
     successes = executed - failures
     earliest = min(all_ts).strftime("%Y-%m-%dT%H:%M:%S") if all_ts else ''
 
-    # Overall Summary
+    # prepare resource dir and copy html_resources
+    out_dir = os.path.dirname(output_path) or '.'
+    res_dir = os.path.join(out_dir, 'html_resources')
+    os.makedirs(res_dir, exist_ok=True)
+    shutil.copytree(RESOURCES_DIR, res_dir, dirs_exist_ok=True)
+
+    # generate horizontal bar chart
+    labels = ['Executed', 'Success']
+    values = [executed/total*100 if total else 0, successes/total*100 if total else 0]
+    fig, ax = plt.subplots(figsize=(4,1.5))
+    ax.barh(labels, values)
+    ax.set_xlim(0,100)
+    ax.set_xlabel('Percentage')
+    ax.set_ylabel('')
+    for i, v in enumerate(values):
+        ax.text(v + 1, i, f"{v:.1f}%", va='center')
+    plt.tight_layout()
+    plt.savefig(os.path.join(res_dir, 'rate_bar.png'), bbox_inches='tight')
+    plt.close()
+
+    # compute percentages for summary
+    exec_pct = f"{executed/total*100:.2f}%" if total else "0.00%"
+    success_pct = f"{successes/total*100:.2f}%" if total else "0.00%"
+
+    # Overall Summary rows
     overall_rows = [
-        row_html(['Total XML files', str(len(results))]),
-        row_html(['Total tests', str(total)]),
-        row_html(['Executed tests', str(executed)]),
-        row_html(['Success tests', str(successes)]),
-        # Failure tests count in red
-        row_html(['Failure tests', f'<span style=\"color:red;\">{failures}</span>']),
-        row_html(['Skipped tests', str(skipped)]),
+        row_html(['Total XML files',    str(len(results))]),
+        row_html(['Total tests',        str(total)]),
+        row_html(['Executed tests',     str(executed)]),
+        row_html(['Execution rate',     exec_pct]),
+        row_html(['Success tests',      str(successes)]),
+        row_html(['Success rate',       success_pct]),
+        row_html(['Failure tests',      f'<span style="color:red;">{failures}</span>']),
+        row_html(['Skipped tests',      str(skipped)]),
         row_html(['Earliest timestamp', earliest])
     ]
     overall_summary = ''.join(overall_rows)
@@ -96,21 +128,19 @@ def generate_report(
         for case in res.cases:
             if case.status == 'failed':
                 test_id = sanitize_id(f"{res.filename}_{case.name}")
-                tst_link = f'<a href=\"#test_{test_id}\">{case.name}</a>'
-                failed_rows.append(row_html([res.filename, tst_link]))
+                link = f'<a href="#test_{test_id}">{case.name}</a>'
+                failed_rows.append(row_html([res.filename, link]))
     failed_table = ''.join(failed_rows)
 
-    # File Summary with conditional red styling for failures
+    # File Summary rows
     file_rows = []
     for res in results:
         ts = res.timestamp.strftime("%Y-%m-%dT%H:%M:%S") if res.timestamp else ''
-        # style failure count red if >0
         fail_html = (
-            f'<span style=\"color:red;\">{res.failures}</span>'
-            if res.failures > 0 else str(res.failures)
+            f'<span style="color:red;">{res.failures}</span>' if res.failures > 0 else str(res.failures)
         )
         file_rows.append(row_html([
-            f'<a href=\"#detail_{res.filename}\">{res.filename}</a>',
+            f'<a href="#detail_{res.filename}">{res.filename}</a>',
             str(res.total),
             fail_html,
             ts
@@ -120,20 +150,20 @@ def generate_report(
     # Test Details by File
     detail_parts = []
     for res in results:
-        detail_parts.append(f'<h3 id=\"detail_{res.filename}\">{res.filename}</h3>\n')
-        detail_parts.append(
-"""
-<table class=\"utests\" style=\"width:100%; table-layout:fixed;\">
+        detail_parts.append(f'<h3 id="detail_{res.filename}">{res.filename}</h3>\n')
+        detail_parts.append("""
+<table class="utests" style="width:100%; table-layout:fixed;">
  <colgroup>
-   <col style=\"width:auto;\">\n
-   <col style=\"width:9ch; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;\">\n
- </colgroup>\n"""
+   <col style="width:auto;">
+   <col style="width:9ch; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">
+ </colgroup>
+"""
         )
         detail_parts.append(row_html(['Test name', 'Result'], header=True))
         for case in res.cases:
             row_id = f'test_{sanitize_id(res.filename)}_{sanitize_id(case.name)}'
             detail_parts.append(
-                f'<tr id=\"{row_id}\">'
+                f'<tr id="{row_id}">'
                 f'<td>{case.name}</td>'
                 f'<td>{format_icon(case.status)}</td>'
                 '</tr>\n'
@@ -141,7 +171,7 @@ def generate_report(
         detail_parts.append('</table><br/>\n')
     test_details = ''.join(detail_parts)
 
-    # write HTML
+    # write HTML output
     title = f"{project_name} {report_name} Report"
     html_content = HTML_TEMPLATE.format(
         title=title,
@@ -150,10 +180,5 @@ def generate_report(
         file_summary=file_summary,
         test_details=test_details
     )
-    out_dir = os.path.dirname(output_path) or '.'
-    os.makedirs(out_dir, exist_ok=True)
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
-
-    # copy resources
-    shutil.copytree(RESOURCES_DIR, os.path.join(out_dir, 'html_resources'), dirs_exist_ok=True)
