@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title }} Report</title>
+  <link rel="stylesheet" href="html_resources/gtest_report.css">
+  <script src="html_resources/extraScript.js"></script>
+</head>
+<body>
+  <h1>{{ title }} Report</h1>
+
+  <h2>Overall Summary</h2>
+  <table class="overall_summary">
+    {% for row in overall_rows %}
+      <tr>{{ row|safe }}</tr>
+    {% endfor %}
+  </table>
+
+  <!-- Bar Chart -->
+  <div class="charts" style="text-align:center; margin:1rem 0;">
+    <img src="html_resources/rate_bar.png" alt="Execution and Success Rates">
+  </div>
+
+  <h2>Failed Tests</h2>
+  {% if failed_rows|length > 1 %}
+    <table class="failed_tests">
+      {% for row in failed_rows %}
+        <tr>{{ row|safe }}</tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <div>No failed tests</div>
+  {% endif %}
+
+  <h2>File Summary</h2>
+  <table class="file_summary">
+    <tr><th>Report name</th><th>Total tests</th><th>Failure</th><th>Timestamp</th></tr>
+    {% for row in file_rows %}
+      <tr>{{ row|safe }}</tr>
+    {% endfor %}
+  </table>
+
+  <h2>Test Details by File</h2>
+  {% for detail in test_details %}
+    {{ detail|safe }}
+  {% endfor %}
+</body>
+</html>

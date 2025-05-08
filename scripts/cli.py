@@ -4,8 +4,9 @@ Command-line interface for generating multiple GTest HTML reports and an index.
 - Accepts project name, input root directory, and output directory
 - Scans input root for subfolders UT, UIT, CT, CIT, SRT
 - Logs detailed processing info: number of XMLs found, processed, and error details
-- Generates individual reports {folder}_Report.html in output directory
-- Creates index.html summarizing Overall Summary of each report with links
+- Generates individual reports {TYPE}_Report.html in output directory
+  with title "<project_name> <Test Type> Report"
+- Creates index.html titled "<project_name> Test Report" summarizing each report
 - Report types with no tests display NT for all values and link
 - Adds footnote: NT: Not Tested
 - Maps abbreviations to full names and adjusts column widths
@@ -14,9 +15,12 @@ Version: 1
 import os
 import glob
 import sys
-from generator import generate_report
-from parser import parse_files
 from datetime import datetime
+
+from jinja2 import Environment, FileSystemLoader
+
+from parser import parse_files
+from generator import generate_report
 
 # Fixed report types and display names
 REPORT_TYPES = ['UT', 'UIT', 'CT', 'CIT', 'SRT']
@@ -28,46 +32,7 @@ DISPLAY_NAMES = {
     'SRT': 'SW Requirement Test'
 }
 
-# Index HTML template with column width adjustments
-INDEX_TEMPLATE = '''<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>{project_name} Test Report</title>
-  <link rel="stylesheet" href="html_resources/gtest_report.css">
-</head>
-<body>
-<h1>{project_name} Test Report</h1>
-<table class="index_summary">
-<colgroup>
-  <col style="width:20%">
-  <col style="width:10%">
-  <col style="width:10%">
-  <col style="width:10%">
-  <col style="width:10%">
-  <col style="width:10%">
-  <col style="width:20%">
-  <col style="width:10%">
-</colgroup>
-<tr>
-  <th>Report Type</th>
-  <th>Total Tests</th>
-  <th>Executed</th>
-  <th>Success</th>
-  <th>Failure</th>
-  <th>Skipped</th>
-  <th>Timestamp</th>
-  <th>Link</th>
-</tr>
-{rows}
-</table>
-<div style="margin-top:0.5rem;font-size:0.9em;">NT: Not Tested</div>
-</body>
-</html>'''
-
-
 def build_index_row(report_type, xml_paths, project_name):
-    # Display full name
     name = DISPLAY_NAMES.get(report_type, report_type)
     if xml_paths:
         results, total, failures, skipped, timestamps = parse_files(xml_paths)
@@ -75,9 +40,8 @@ def build_index_row(report_type, xml_paths, project_name):
         successes = executed - failures
         timestamp = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ''
         link = f'<a href="{report_type}_Report.html">View</a>'
-        fail_html = f'<span style="color:red;">{failures}</span>' if failures > 0 else str(failures)
+        fail_html = f'<span style="color:red;">{failures}</span>' if failures > 0 else '0'
         return (
-            f'<tr>'
             f'<td>{name}</td>'
             f'<td>{total}</td>'
             f'<td>{executed}</td>'
@@ -86,12 +50,10 @@ def build_index_row(report_type, xml_paths, project_name):
             f'<td>{skipped}</td>'
             f'<td>{timestamp}</td>'
             f'<td>{link}</td>'
-            '</tr>\n'
         )
     else:
         # No tests: display NT
         return (
-            f'<tr>'
             f'<td>{name}</td>'
             f'<td>NT</td>'
             f'<td>NT</td>'
@@ -100,9 +62,7 @@ def build_index_row(report_type, xml_paths, project_name):
             f'<td>NT</td>'
             f'<td>NT</td>'
             f'<td>NT</td>'
-            '</tr>\n'
         )
-
 
 def main():
     if len(sys.argv) != 4:
@@ -114,34 +74,42 @@ def main():
     os.makedirs(output_root, exist_ok=True)
 
     print(f"Starting report generation for project: {project_name}")
-    print(f"Input root: {input_root}, Output root: {output_root}\n")
+    print(f"Input root: {input_root}")
+    print(f"Output root: {output_root}\n")
 
     index_rows = []
     for rtype in REPORT_TYPES:
-        name = DISPLAY_NAMES.get(rtype)
-        xml_dir = os.path.join(input_root, rtype)
-        pattern = os.path.join(xml_dir, '*.xml')
-        xml_files = glob.glob(pattern)
-        count = len(xml_files)
+        name      = DISPLAY_NAMES.get(rtype)
+        xml_dir   = os.path.join(input_root, rtype)
+        xml_files = glob.glob(os.path.join(xml_dir, '*.xml'))
+        count     = len(xml_files)
         print(f"Processing {rtype} ({name}): found {count} XML files.")
         if xml_files:
             try:
-                report_name = name
-                out_file = os.path.join(output_root, f"{rtype}_Report.html")
-                generate_report(project_name, report_name, xml_files, out_file)
-                print(f"  -> Generated {rtype}_Report.html with {count} files processed.")
+                report_title = DISPLAY_NAMES.get(rtype, rtype)
+                out_file     = os.path.join(output_root, f"{rtype}_Report.html")
+                generate_report(project_name, report_title, xml_files, out_file)
+                print(f"  -> Generated {rtype}_Report.html")
             except Exception as e:
                 print(f"  ERROR generating report for {rtype}: {e}")
         else:
             print(f"  -> No XML files for {rtype}, marked NT.")
-        row = build_index_row(rtype, xml_files, project_name)
-        index_rows.append(row)
+        # build <tr> inner HTML
+        row_inner = build_index_row(rtype, xml_files, project_name)
+        index_rows.append(f"<tr>{row_inner}</tr>\n")
 
-    # Write index.html
-    index_content = INDEX_TEMPLATE.format(project_name=project_name, rows=''.join(index_rows))
+    # render index.html from template
+    tpl_dir = os.path.join(os.path.dirname(__file__), 'templates')
+    env     = Environment(loader=FileSystemLoader(tpl_dir))
+    tpl     = env.get_template('index.html')
+    html    = tpl.render(
+        project_name=project_name,
+        index_rows=index_rows
+    )
     index_path = os.path.join(output_root, 'index.html')
     with open(index_path, 'w', encoding='utf-8') as f:
-        f.write(index_content)
+        f.write(html)
+
     print(f"\nIndex generated at {index_path}")
     print("All reports processed successfully.")
 
