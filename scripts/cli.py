@@ -3,18 +3,13 @@
 Command-line interface for generating multiple GTest HTML reports and an index.
 - Accepts project name, input root directory, and output directory
 - Scans input root for subfolders UT, UIT, CT, CIT, SRT
-- Logs detailed processing info: number of XMLs found, processed, and error details
-- Generates individual reports {TYPE}_Report.html in output directory
-  with title "<project_name> <Test Type> Report"
-- Creates index.html titled "<project_name> Test Report" summarizing each report
-- Report types with no tests display NT for all values and link
-- Adds footnote: NT: Not Tested
-- Maps abbreviations to full names and adjusts column widths
+- Logs detailed processing info
+- Generates individual reports {TYPE}_Report.html
+- Creates index.html summarizing each report
 Version: 1
 """
-import os
-import glob
 import sys
+from pathlib import Path
 from datetime import datetime
 
 from jinja2 import Environment, FileSystemLoader
@@ -32,7 +27,7 @@ DISPLAY_NAMES = {
     'SRT': 'SW Requirement Test'
 }
 
-def build_index_row(report_type, xml_paths, project_name):
+def build_index_row(report_type: str, xml_paths: list[Path], project_name: str) -> str:
     name = DISPLAY_NAMES.get(report_type, report_type)
     if xml_paths:
         results, total, failures, skipped, timestamps = parse_files(xml_paths)
@@ -69,9 +64,9 @@ def main():
         print("Usage: cli.py <project_name> <input_root_dir> <output_dir>")
         sys.exit(1)
     project_name = sys.argv[1]
-    input_root   = sys.argv[2]
-    output_root  = sys.argv[3]
-    os.makedirs(output_root, exist_ok=True)
+    input_root   = Path(sys.argv[2])
+    output_root  = Path(sys.argv[3])
+    output_root.mkdir(parents=True, exist_ok=True)
 
     print(f"Starting report generation for project: {project_name}")
     print(f"Input root: {input_root}")
@@ -79,36 +74,34 @@ def main():
 
     index_rows = []
     for rtype in REPORT_TYPES:
-        name      = DISPLAY_NAMES.get(rtype)
-        xml_dir   = os.path.join(input_root, rtype)
-        xml_files = glob.glob(os.path.join(xml_dir, '*.xml'))
+        name      = DISPLAY_NAMES[rtype]
+        xml_dir   = input_root / rtype
+        xml_files = list(xml_dir.glob('*.xml'))
         count     = len(xml_files)
         print(f"Processing {rtype} ({name}): found {count} XML files.")
         if xml_files:
             try:
-                report_title = DISPLAY_NAMES.get(rtype, rtype)
-                out_file     = os.path.join(output_root, f"{rtype}_Report.html")
+                report_title = name
+                out_file     = output_root / f"{rtype}_Report.html"
                 generate_report(project_name, report_title, xml_files, out_file)
-                print(f"  -> Generated {rtype}_Report.html")
+                print(f"  -> Generated {out_file.name}")
             except Exception as e:
                 print(f"  ERROR generating report for {rtype}: {e}")
         else:
             print(f"  -> No XML files for {rtype}, marked NT.")
-        # build <tr> inner HTML
         row_inner = build_index_row(rtype, xml_files, project_name)
         index_rows.append(f"<tr>{row_inner}</tr>\n")
 
     # render index.html from template
-    tpl_dir = os.path.join(os.path.dirname(__file__), 'templates')
-    env     = Environment(loader=FileSystemLoader(tpl_dir))
+    tpl_dir = Path(__file__).parent / 'templates'
+    env     = Environment(loader=FileSystemLoader(str(tpl_dir)))
     tpl     = env.get_template('index.html')
     html    = tpl.render(
         project_name=project_name,
         index_rows=index_rows
     )
-    index_path = os.path.join(output_root, 'index.html')
-    with open(index_path, 'w', encoding='utf-8') as f:
-        f.write(html)
+    index_path = output_root / 'index.html'
+    index_path.write_text(html, encoding='utf-8')
 
     print(f"\nIndex generated at {index_path}")
     print("All reports processed successfully.")

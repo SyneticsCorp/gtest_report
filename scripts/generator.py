@@ -1,20 +1,21 @@
 # File: scripts/generator.py
 """
 Generates an HTML report from parsed test data and copies necessary resources.
-(Includes execution and success rate bar chart under Overall Summary using matplotlib.)
+- Uses pathlib for paths
+- Renders with Jinja2 templates in scripts/templates/
+- Generates a bar chart with matplotlib
 Requires: pip install matplotlib jinja2
 """
-import os
-import shutil
+from pathlib import Path
 from datetime import datetime
-
+import shutil
 import matplotlib.pyplot as plt
 from jinja2 import Environment, FileSystemLoader
 
 from parser import parse_files
 
 # resources under scripts/html_resources/
-RESOURCES_DIR = os.path.join(os.path.dirname(__file__), 'html_resources')
+RESOURCES_DIR = Path(__file__).parent / 'html_resources'
 ICON_FILES    = {
     'success': 'gtest_report_ok.png',
     'failed':  'gtest_report_notok.png',
@@ -27,8 +28,7 @@ def format_icon(status: str) -> str:
 
 def row_html(cells: list[str], header: bool=False) -> str:
     tag   = 'th' if header else 'td'
-    inner = ''.join(f'<{tag}>{c}</{tag}>' for c in cells)
-    return inner  # safe to embed into <tr> in template
+    return ''.join(f'<{tag}>{c}</{tag}>' for c in cells)
 
 def sanitize_id(text: str) -> str:
     return ''.join(c if c.isalnum() or c=='_' else '_' for c in text)
@@ -42,8 +42,8 @@ def split_test_name(full_name: str) -> tuple[str,str]:
 def generate_report(
     project_name: str,
     report_name: str,
-    xml_paths: list[str],
-    output_path: str
+    xml_paths: list[Path],
+    output_path: Path
 ):
     # parse
     results, total, failures, skipped, all_ts = parse_files(xml_paths)
@@ -51,11 +51,11 @@ def generate_report(
     successes = executed - failures
     earliest  = min(all_ts).strftime("%Y-%m-%d %H:%M:%S") if all_ts else ''
 
-    # prepare resources
-    out_dir = os.path.dirname(output_path) or '.'
-    res_dir = os.path.join(out_dir, 'html_resources')
-    os.makedirs(res_dir, exist_ok=True)
-    shutil.copytree(RESOURCES_DIR, res_dir, dirs_exist_ok=True)
+    # prepare output dirs
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    res_dir = output_path.parent / 'html_resources'
+    if not res_dir.exists():
+        shutil.copytree(RESOURCES_DIR, res_dir)
 
     # generate bar chart
     labels = ['Executed', 'Success']
@@ -69,7 +69,8 @@ def generate_report(
     for i, v in enumerate(values):
         ax.text(v + 1, i, f"{v:.1f}%", va='center')
     plt.tight_layout()
-    plt.savefig(os.path.join(res_dir, 'rate_bar.png'), bbox_inches='tight')
+    chart_path = res_dir / 'rate_bar.png'
+    plt.savefig(chart_path, bbox_inches='tight')
     plt.close()
 
     # build table rows
@@ -118,7 +119,7 @@ def generate_report(
         detail_parts.append(row_html(['Test Suite', 'Test Case', 'Result'], header=True))
         for case in res.cases:
             suite, case_name = split_test_name(case.name)
-            row_id = f'test_{sanitize_id(res.filename)}_{sanitize_id(case.name)}'
+            row_id = f"test_{sanitize_id(res.filename)}_{sanitize_id(case.name)}"
             detail_parts.append(
                 f'<tr id="{row_id}">'
                 f'<td>{suite}</td>'
@@ -128,9 +129,9 @@ def generate_report(
             )
         detail_parts.append('</table><br/>')
 
-    # render from Jinja2 template
-    tpl_dir = os.path.join(os.path.dirname(__file__), 'templates')
-    env     = Environment(loader=FileSystemLoader(tpl_dir))
+    # render with Jinja2
+    tpl_dir = Path(__file__).parent / 'templates'
+    env     = Environment(loader=FileSystemLoader(str(tpl_dir)))
     tpl     = env.get_template('report.html')
     html    = tpl.render(
         title=f"{project_name} {report_name}",
@@ -139,5 +140,4 @@ def generate_report(
         file_rows=file_rows,
         test_details=detail_parts
     )
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(html)
+    output_path.write_text(html, encoding='utf-8')

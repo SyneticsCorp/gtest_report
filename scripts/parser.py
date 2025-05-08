@@ -1,17 +1,19 @@
 # File: scripts/parser.py
 """
 Parses Google Test XML files into structured Python objects.
+Now supports pathlib.Path inputs by converting to string for parsing.
 """
 import os
 from xml.dom.minidom import parse
 from xml.parsers.expat import ExpatError
 from datetime import datetime
+from pathlib import Path
 
 class TestCaseResult:
     def __init__(self, name: str, time: float, status: str, failure_message: str = ""):
         self.name = name
         self.time = time
-        self.status = status        # 'success', 'failed', or 'skipped'
+        self.status = status
         self.failure_message = failure_message
 
 class TestFileResult:
@@ -33,19 +35,18 @@ class TestFileResult:
         self.timestamp = timestamp
         self.cases     = cases
 
-def parse_file(xml_path: str) -> TestFileResult:
+def parse_file(xml_path: Path | str) -> TestFileResult:
+    path_str = str(xml_path)
     try:
-        dom = parse(xml_path)
+        dom = parse(path_str)
     except ExpatError as e:
-        raise RuntimeError(f"Failed to parse {xml_path}: {e}")
+        raise RuntimeError(f"Failed to parse {path_str}: {e}")
 
-    # root <testsuites> or <testsuite>
     suites = dom.getElementsByTagName("testsuites") or dom.getElementsByTagName("testsuite")
     if not suites:
-        raise RuntimeError(f"No <testsuites> or <testsuite> in {xml_path}")
+        raise RuntimeError(f"No <testsuites> or <testsuite> in {path_str}")
     root = suites[0]
 
-    # collect timestamps
     timestamps: list[datetime] = []
     def add_ts(node):
         for attr in ("timestamp", "timestamps"):
@@ -59,15 +60,13 @@ def parse_file(xml_path: str) -> TestFileResult:
                 except ValueError:
                     pass
     add_ts(root)
-    suite_nodes = root.getElementsByTagName("testsuite") if root.tagName=="testsuites" else [root]
+    suite_nodes = root.getElementsByTagName("testsuite") if root.tagName == "testsuites" else [root]
     for suite in suite_nodes:
         add_ts(suite)
 
-    # failures & total_time
-    failures   = sum(int(n.getAttribute("failures") or 0)  for n in suite_nodes)
+    failures_count = sum(int(n.getAttribute("failures") or 0) for n in suite_nodes)
     total_time = sum(float(n.getAttribute("time") or 0.0) for n in suite_nodes)
 
-    # parse testcases
     testcases = dom.getElementsByTagName("testcase")
     skipped_count = 0
     cases: list[TestCaseResult] = []
@@ -75,40 +74,36 @@ def parse_file(xml_path: str) -> TestFileResult:
         fullname = f"{tc.getAttribute('classname')}.{tc.getAttribute('name')}"
         elapsed  = float(tc.getAttribute("time") or 0.0)
 
-        # determine status & capture failure message
         failure_nodes = tc.getElementsByTagName("failure")
         if failure_nodes:
             status = 'failed'
-            node   = failure_nodes[0]
+            node = failure_nodes[0]
             msg_attr = node.getAttribute("message") or ""
-            # 안전하게 텍스트 노드 추출
-            if node.firstChild and node.firstChild.nodeValue:
-                msg_text = node.firstChild.nodeValue
-            else:
-                msg_text = ""
-            failure_message = (msg_attr + "\n" + msg_text).strip()
+            text = node.firstChild.nodeValue if node.firstChild else ""
+            failure_message = (msg_attr + "\n" + text).strip()
         elif tc.getElementsByTagName("skipped"):
-            status          = 'skipped'
-            skipped_count  += 1
+            status = 'skipped'
+            skipped_count += 1
             failure_message = ""
         else:
-            status          = 'success'
+            status = 'success'
             failure_message = ""
 
         cases.append(TestCaseResult(fullname, elapsed, status, failure_message))
 
     earliest = min(timestamps) if timestamps else None
+    filename = Path(path_str).name
     return TestFileResult(
-        filename=os.path.basename(xml_path),
+        filename=filename,
         total=len(testcases),
-        failures=failures,
+        failures=failures_count,
         skipped=skipped_count,
         duration=total_time,
         timestamp=earliest,
-        cases=cases,
+        cases=cases
     )
 
-def parse_files(xml_paths: list[str]) -> tuple[list[TestFileResult], int, int, int, list[datetime]]:
+def parse_files(xml_paths: list[Path] | list[str]) -> tuple[list[TestFileResult], int, int, int, list[datetime]]:
     results = []
     tot = fails = skip = 0
     all_ts: list[datetime] = []
