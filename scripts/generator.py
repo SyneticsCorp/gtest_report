@@ -1,7 +1,7 @@
 # File: scripts/generator.py
 """
 Generates an HTML report from parsed test data and copies necessary resources.
-(Includes a horizontal bar chart of execution and success rates under Overall Summary using matplotlib.)
+(Includes execution and success rate bar chart under Overall Summary using matplotlib.)
 Requires matplotlib: install via `pip install matplotlib`
 """
 import os
@@ -56,21 +56,17 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 </body>
 </html>'''
 
-
 def format_icon(status: str) -> str:
     fn = ICON_FILES.get(status, ICON_FILES['skipped'])
     return f'<img src="html_resources/{fn}" alt="{status}" class="icon" width="16" height="16"/>'
 
-
 def row_html(cells: list[str], header: bool=False) -> str:
-    tag = 'th' if header else 'td'
+    tag   = 'th' if header else 'td'
     inner = ''.join(f'<{tag}>{c}</{tag}>' for c in cells)
     return f'<tr>{inner}</tr>\n'
 
-
 def sanitize_id(text: str) -> str:
     return ''.join(c if c.isalnum() or c=='_' else '_' for c in text)
-
 
 def generate_report(
     project_name: str,
@@ -80,9 +76,9 @@ def generate_report(
 ):
     # parse
     results, total, failures, skipped, all_ts = parse_files(xml_paths)
-    executed = total - skipped
+    executed  = total - skipped
     successes = executed - failures
-    earliest = min(all_ts).strftime("%Y-%m-%dT%H:%M:%S") if all_ts else ''
+    earliest  = min(all_ts).strftime("%Y-%m-%d %H:%M:%S") if all_ts else ''
 
     # prepare resource dir and copy html_resources
     out_dir = os.path.dirname(output_path) or '.'
@@ -92,12 +88,14 @@ def generate_report(
 
     # generate horizontal bar chart
     labels = ['Executed', 'Success']
-    values = [executed/total*100 if total else 0, successes/total*100 if total else 0]
-    fig, ax = plt.subplots(figsize=(4,1.5))
+    values = [
+        executed/total*100 if total else 0,
+        successes/total*100 if total else 0
+    ]
+    fig, ax = plt.subplots(figsize=(4, 1.5))
     ax.barh(labels, values)
-    ax.set_xlim(0,100)
+    ax.set_xlim(0, 100)
     ax.set_xlabel('Percentage')
-    ax.set_ylabel('')
     for i, v in enumerate(values):
         ax.text(v + 1, i, f"{v:.1f}%", va='center')
     plt.tight_layout()
@@ -105,7 +103,7 @@ def generate_report(
     plt.close()
 
     # compute percentages for summary
-    exec_pct = f"{executed/total*100:.2f}%" if total else "0.00%"
+    exec_pct    = f"{executed/total*100:.2f}%" if total else "0.00%"
     success_pct = f"{successes/total*100:.2f}%" if total else "0.00%"
 
     # Overall Summary rows
@@ -128,16 +126,17 @@ def generate_report(
         for case in res.cases:
             if case.status == 'failed':
                 test_id = sanitize_id(f"{res.filename}_{case.name}")
-                link = f'<a href="#test_{test_id}">{case.name}</a>'
+                link    = f'<a href="#test_{test_id}">{case.name}</a>'
                 failed_rows.append(row_html([res.filename, link]))
     failed_table = ''.join(failed_rows)
 
     # File Summary rows
     file_rows = []
     for res in results:
-        ts = res.timestamp.strftime("%Y-%m-%dT%H:%M:%S") if res.timestamp else ''
+        ts = res.timestamp.strftime("%Y-%m-%d %H:%M:%S") if res.timestamp else ''
         fail_html = (
-            f'<span style="color:red;">{res.failures}</span>' if res.failures > 0 else str(res.failures)
+            f'<span style="color:red;">{res.failures}</span>'
+            if res.failures > 0 else str(res.failures)
         )
         file_rows.append(row_html([
             f'<a href="#detail_{res.filename}">{res.filename}</a>',
@@ -157,8 +156,7 @@ def generate_report(
    <col style="width:auto;">
    <col style="width:9ch; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">
  </colgroup>
-"""
-        )
+""")
         detail_parts.append(row_html(['Test name', 'Result'], header=True))
         for case in res.cases:
             row_id = f'test_{sanitize_id(res.filename)}_{sanitize_id(case.name)}'
