@@ -1,11 +1,9 @@
+# File: gtest_report/cli.py
+
 """
 CLI entry point:
-- Parallel generation of UT/UIT/CT/CIT/SRT reports
-- Renders index.html with:
-    * Jenkins build info
-    * Overall Results
-      - Summary by Test Stage
-      - Test Coverage
+- Parallel generation of UT/UIT/SCT/SCIT/SRT reports
+- Renders index.html with Jenkins build info and Test Stage/Coverage summaries
 """
 import sys
 import argparse
@@ -17,24 +15,26 @@ from .parser import parse_files
 from .builder.html_builder import render_report
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-REPORT_TYPES  = ["UT", "UIT", "CT", "CIT", "SRT"]
+# 약어 변경: CT → SCT, CIT → SCIT
+REPORT_TYPES  = ["UT", "UIT", "SCT", "SCIT", "SRT"]
 DISPLAY_NAMES = {
-    "UT":  "Unit Test",
-    "UIT": "Unit Integration Test",
-    "CT":  "Component Test",
-    "CIT": "Component Integration Test",
-    "SRT": "SW Requirement Test",
+    "UT":   "Unit Test",
+    "UIT":  "Unit Integration Test",
+    "SCT":  "Component Test",
+    "SCIT": "Component Integration Test",
+    "SRT":  "SW Requirement Test",
 }
 
 
 def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
-    """Generate <td>…</td> cells for the Summary by Test Stage table."""
+    """Generate <td>…</td> cells for the Test Stage Summary table."""
     name = DISPLAY_NAMES[report_type]
     if xml_paths:
         results, total, failures, skipped, timestamps = parse_files(xml_paths)
         executed = total - skipped
         successes = executed - failures
-        # split skipped
+
+        # split skipped by reason
         skipped_with_reason = 0
         skipped_no_reason   = 0
         for fr in results:
@@ -44,9 +44,11 @@ def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
                         skipped_with_reason += 1
                     else:
                         skipped_no_reason += 1
+
         ts_str    = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""
-        link      = f'<a href="{report_type}_Report.html">View</a>'
+        link      = f'<a href="{report_type}_Report.html">View Report</a>'
         fail_html = f'<span style="color:red;">{failures}</span>' if failures else "0"
+
         cells = [
             name,
             str(total),
@@ -59,40 +61,10 @@ def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
             link,
         ]
     else:
+        # NT = Not Tested
         cells = [name] + ["NT"] * 8
+
     return "".join(f"<td>{c}</td>" for c in cells)
-
-
-def build_coverage_data(report_type: str, xml_paths: list[Path]) -> dict:
-    """Compute coverage metrics per stage using specified formulas."""
-    name = DISPLAY_NAMES[report_type]
-    if not xml_paths:
-        return {
-            "stage": name,
-            "exec_rate": "NT",
-            "exec_no_skip": "NT",
-            "pass_rate": "NT",
-        }
-    # parse
-    results, total, failures, skipped, _ = parse_files(xml_paths)
-    executed = total - skipped
-    passed   = executed - failures
-    # only count skipped with reason
-    skipped_with_reason = 0
-    for fr in results:
-        for case in fr.cases:
-            if case.status == "skipped" and getattr(case, "failure_message", "").strip():
-                skipped_with_reason += 1
-    # formulas
-    exec_rate      = (passed + failures + skipped_with_reason) / total * 100 if total else 0
-    exec_no_skip   = (passed + failures) / total * 100 if total else 0
-    pass_rate      = passed / total * 100 if total else 0
-    return {
-        "stage": name,
-        "exec_rate": f"{exec_rate:.1f}",
-        "exec_no_skip": f"{exec_no_skip:.1f}",
-        "pass_rate": f"{pass_rate:.1f}",
-    }
 
 
 def _worker(task):
@@ -129,10 +101,14 @@ def main():
 
     output_root.mkdir(parents=True, exist_ok=True)
 
+    print(f"Starting report generation for project: {project_name}")
+    print(f"Input: {input_root}, Output: {output_root}\n")
+
     # 1) Parallel report generation
     tasks = []
     for rtype in REPORT_TYPES:
         xmls = list((input_root / rtype).glob("*.xml"))
+        print(f"Processing {rtype} ({DISPLAY_NAMES[rtype]}): {len(xmls)} XML files found.")
         tasks.append((rtype, project_name, DISPLAY_NAMES[rtype], xmls, output_root))
 
     with ProcessPoolExecutor() as executor:
@@ -144,17 +120,12 @@ def main():
             else:
                 print(f"[ERROR] {rtype}: {err}", file=sys.stderr)
 
-    # 2) Build index data
-    index_rows     = [
+    # 2) Render index.html
+    index_rows = [
         build_index_cells(rtype, list((input_root / rtype).glob("*.xml")))
         for rtype in REPORT_TYPES
     ]
-    coverage_rows = [
-        build_coverage_data(rtype, list((input_root / rtype).glob("*.xml")))
-        for rtype in REPORT_TYPES
-    ]
 
-    # 3) Render index.html
     tpl_dir = Path(__file__).parent / "templates"
     env     = Environment(
         loader=FileSystemLoader(str(tpl_dir)),
@@ -162,14 +133,13 @@ def main():
     )
     tpl = env.get_template("index.html")
     html = tpl.render(
-        project_name   = project_name,
-        branch         = branch,
-        release_tag    = release_tag,
-        commit_id      = commit_id,
-        build_number   = build_number,
-        report_date    = report_date,
-        index_rows     = index_rows,
-        coverage_rows  = coverage_rows,
+        project_name = project_name,
+        branch       = branch,
+        release_tag  = release_tag,
+        commit_id    = commit_id,
+        build_number = build_number,
+        report_date  = report_date,
+        index_rows   = index_rows,
     )
     (output_root / "index.html").write_text(html, encoding="utf-8")
 
