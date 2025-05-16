@@ -5,3 +5,5 @@ in/
 gtest_report.egg-info/
 __pycache__/
 build/
+dist/
+etc.txt
