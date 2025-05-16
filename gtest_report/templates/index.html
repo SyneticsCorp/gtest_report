@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <title>{{ project_name }} Test Report</title>
   <link rel="stylesheet" href="html_resources/gtest_report.css">
+  <style>
+    sup { font-size: 0.7em; vertical-align: super; }
+  </style>
 </head>
 <body>
   <h1>{{ project_name }} Test Report</h1>
@@ -60,6 +63,41 @@
     {% endfor %}
   </table>
 
-  <div style="margin-top:0.5rem;font-size:0.9em;">NT = Not Tested</div>
+  <h3>Static Analysis Summary</h3>
+  <table class="index_summary">
+    <colgroup>
+      <col style="width:50%">
+      <col style="width:50%">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>Violation Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Total Violations</strong></td>
+        <td><strong>{{ sa_total_violations }}</strong></td>
+      </tr>
+      {% for comp, count in sa_component_counts.items() %}
+      <tr>
+        <td>{{ comp }}</td>
+        <td>{{ count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div style="margin-top: 0.5rem;">
+    <a href="SA_Report.html">View Detailed Static Analysis Report</a>
+  </div>
+
+  <div style="margin-top:0.5rem;font-size:0.9em;">
+    NT = Not Tested<sup>1</sup>
+  </div>
+
+  <div style="font-size:0.8em; margin-top:0.2rem;">
+    <sup>1</sup> NT: 테스트가 수행되지 않았음을 의미합니다.
+  </div>
 </body>
 </html>

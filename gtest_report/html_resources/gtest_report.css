@@ -97,6 +97,41 @@ body {
   }
   
   /* 차트 컨테이너 (별도 CSS 없는 경우 inline style 활용 가능) */
+  .chart-container {
+  display: flex;
+  flex-direction: column;  /* 세로 배열 */
+  gap: 1.5rem;
+  margin: 1rem 0 3rem 0;
+  width: 80%;              /* 표 너비에 맞춤 */
+  max-width: 700px;
+}
+
+.chart-box {
+  height: 300px;           /* 높이 고정 300px */
+  width: 100%;             /* 부모 너비 꽉 채움 */
+  position: relative;
+  text-align: center;
+}
+
+.chart-box canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.ruleid-chart-container {
+  width: 80%;              /* 표 너비에 맞춤 */
+  max-width: 700px;
+  height: 300px;           /* 높이 300px 고정 */
+  margin-top: 2rem;
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.ruleid-chart-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
   
   /* 반응형: 화면이 좁아지면 차트를 세로로 배치 */
   @media (max-width: 600px) {

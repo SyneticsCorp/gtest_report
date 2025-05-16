@@ -2,6 +2,7 @@
 
 """
 Google Test XML 파일을 파싱하여 결과 객체(TestFileResult, TestCaseResult)로 반환
+PC Lint Plus 정적분석 XML도 파싱 가능하도록 확장
 """
 from xml.dom.minidom import parse
 from xml.parsers.expat import ExpatError
@@ -38,6 +39,9 @@ class TestFileResult:
 
 
 def parse_file(xml_path: Path | str) -> TestFileResult:
+    """
+    Google Test XML 결과 파싱
+    """
     path_str = str(xml_path)
     try:
         dom = parse(path_str)
@@ -117,7 +121,36 @@ def parse_file(xml_path: Path | str) -> TestFileResult:
     )
 
 
+def parse_sa_file(xml_path: Path | str) -> dict[str, int]:
+    """
+    PC Lint Plus report.xml 파싱
+    각 룰 코드별 위반 건수 집계하여 반환
+    """
+    path_str = str(xml_path)
+    try:
+        dom = parse(path_str)
+    except ExpatError as e:
+        raise RuntimeError(f"Failed to parse {path_str}: {e}")
+
+    messages = dom.getElementsByTagName("message")
+    rule_counts: dict[str, int] = {}
+
+    for msg in messages:
+        code_nodes = msg.getElementsByTagName("code")
+        if code_nodes and code_nodes[0].firstChild:
+            code = code_nodes[0].firstChild.nodeValue.strip()
+        else:
+            code = "Unknown"
+
+        rule_counts[code] = rule_counts.get(code, 0) + 1
+
+    return rule_counts
+
+
 def parse_files(xml_paths: list[Path] | list[str]):
+    """
+    Google Test 여러 파일 파싱 (기존 함수)
+    """
     results = []
     tot = fail = skip = 0
     all_ts: list[datetime] = []

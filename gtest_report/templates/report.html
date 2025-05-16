@@ -23,6 +23,25 @@
       width: 100% !important;
       height: 100% !important;
     }
+    /* SA 요약 표 스타일 */
+    section.sa-summary {
+      margin-top: 2rem;
+      border-top: 2px solid #333;
+      padding-top: 1rem;
+    }
+    section.sa-summary table {
+      width: 50%;
+      border-collapse: collapse;
+      margin-bottom: 1rem;
+    }
+    section.sa-summary th, section.sa-summary td {
+      border: 1px solid #666;
+      padding: 6px 10px;
+      text-align: center;
+    }
+    section.sa-summary th {
+      background-color: #eee;
+    }
   </style>
 </head>
 <body>
@@ -123,5 +142,24 @@
       {{ detail|safe }}
     {% endfor %}
   </div>
+
+  {% if has_sa_summary %}
+  <section class="sa-summary">
+    <h2>Static Analysis Summary (PC Lint Plus)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Rule Code</th>
+          <th>Violation Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ sa_summary_rows | safe }}
+      </tbody>
+    </table>
+    <p><a href="sa_report.html">View Detailed Static Analysis Report</a></p>
+  </section>
+  {% endif %}
+
 </body>
 </html>

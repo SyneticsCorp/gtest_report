@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Static Analysis Report - {{ component }}</title>
+  <link rel="stylesheet" href="html_resources/gtest_report.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels/dist/chartjs-plugin-datalabels.min.js"></script>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 90%;
+      margin-bottom: 1.5rem;
+    }
+    table.filewise-violation-counts {
+      margin-bottom: 3rem; /* File-wise 테이블만 아래 여백 넓힘 */
+    }
+    th, td {
+      border: 1px solid #999;
+      padding: 6px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background-color: #eee;
+    }
+
+    /* 제목 스타일 개선 */
+    h3 {
+      font-weight: 700;
+      font-size: 1.3rem;
+      margin: 2rem 0 1rem 0;
+      border-bottom: 2px solid #555;
+      padding-bottom: 0.3rem;
+    }
+
+    .chart-container {
+      display: flex;
+      flex-direction: column;
+      gap: 3rem;
+      margin: 1rem 0 6rem 0; /* 기존 margin-bottom 1rem → 3rem으로 확대 */
+      height: 600px;
+    }
+
+    .chart-box {
+      flex: 1;
+      min-width: 300px;
+      text-align: center;
+      height: 300px; /* 개별 차트 높이 */
+      position: relative;
+    }
+
+    .chart-box canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* 차트 제목 스타일 */
+    .chart-box > div {
+      margin-top: 0.5rem;
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>Static Analysis Report - {{ component }}</h1>
+
+  <h2>Overall Summary</h2>
+  <table>
+    <tr><th>Total Violations</th><td>{{ total_violations }}</td></tr>
+  </table>
+
+  <h3>Severity-wise Violation Counts</h3>
+  <table>
+    <thead>
+      <tr><th>Severity</th><th>Count</th></tr>
+    </thead>
+    <tbody>
+      {% for sev, cnt in severity_counts.items() %}
+      <tr><td>{{ sev }}</td><td>{{ cnt }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Rule ID-wise Violation Counts</h3>
+  <table>
+    <thead>
+      <tr><th>Rule ID</th><th>Count</th></tr>
+    </thead>
+    <tbody>
+      {% set sorted_ruleids = ruleid_counts.keys()|reject("equalto", "etc")|sort %}
+      {% for rid in sorted_ruleids %}
+      <tr><td>{{ rid }}</td><td>{{ ruleid_counts[rid] }}</td></tr>
+      {% endfor %}
+      {% if "etc" in ruleid_counts %}
+      <tr><td>etc</td><td>{{ ruleid_counts["etc"] }}</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <div class="chart-container">
+    <div class="chart-box">
+      <canvas id="severityChart"></canvas>
+      <div>Violations per Severity</div>
+    </div>
+    <div class="chart-box">
+      <canvas id="ruleIdChart"></canvas>
+      <div>Violations per Rule ID</div>
+    </div>
+  </div>
+
+  <h3>File-wise Violation Counts</h3>
+  <table class="filewise-violation-counts">
+    <thead>
+      <tr><th>File Name</th><th>Violation Count</th></tr>
+    </thead>
+    <tbody>
+      {% for fname, cnt in file_counts.items() %}
+        {% set display_name = fname %}
+        {% if component != 'etc' %}
+          {% set parts = fname.split('para-api') %}
+          {% if parts|length > 1 %}
+            {% set display_name = parts[1].lstrip('/\\') %}
+          {% endif %}
+        {% endif %}
+        <tr>
+          <td><a href="#file_{{ loop.index }}">{{ display_name }}</a></td>
+          <td>{{ cnt }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Detailed Violations by File</h3>
+  {% for fname, violations in file_violations.items() %}
+    {% set display_name = fname %}
+    {% if component != 'etc' %}
+      {% set parts = fname.split('para-api') %}
+      {% if parts|length > 1 %}
+        {% set display_name = parts[1].lstrip('/\\') %}
+      {% endif %}
+    {% endif %}
+    <h4 id="file_{{ loop.index }}">{{ display_name }}</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>Line</th>
+          <th>Rule ID</th>
+          <th>Severity</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in violations %}
+        <tr>
+          <td>{{ v.line }}</td>
+          <td>{{ v.ruleid }}</td>
+          <td>{{ v.severity }}</td>
+          <td>{{ v.desc }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endfor %}
+
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    Chart.register(ChartDataLabels);
+
+    const sevLabels = {{ severity_counts.keys() | list | tojson }};
+    const sevValues = {{ severity_counts.values() | list | tojson }};
+
+    const sortedRuleIds = [
+      {% set ruleids = ruleid_counts.keys()|reject("equalto", "etc")|sort|list %}
+      {% for rid in ruleids %}
+        "{{ rid }}",
+      {% endfor %}
+      {% if "etc" in ruleid_counts %}
+        "etc"
+      {% endif %}
+    ];
+
+    const ruleValues = [
+      {% for rid in ruleids %}
+        {{ ruleid_counts[rid] }},
+      {% endfor %}
+      {% if "etc" in ruleid_counts %}
+        {{ ruleid_counts["etc"] }}
+      {% else %}
+        0
+      {% endif %}
+    ];
+
+    const commonOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            precision: 0,
+          },
+        },
+      },
+      plugins: {
+        datalabels: {
+          formatter: value => value,
+          color: '#000',
+          font: { weight: 'bold', size: 12 },
+          anchor: 'end',
+          align: 'top',
+          clamp: true,
+          offset: 4
+        },
+        tooltip: { enabled: false }
+      }
+    };
+
+    new Chart(document.getElementById('severityChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: sevLabels,
+        datasets: [{
+          label: 'Violations',
+          data: sevValues,
+          backgroundColor: 'rgba(255, 99, 132, 0.7)'
+        }]
+      },
+      options: commonOptions
+    });
+
+    new Chart(document.getElementById('ruleIdChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: sortedRuleIds,
+        datasets: [{
+          label: 'Violations',
+          data: ruleValues,
+          backgroundColor: 'rgba(153, 102, 255, 0.7)'
+        }]
+      },
+      options: commonOptions
+    });
+  });
+  </script>
+</body>
+</html>
