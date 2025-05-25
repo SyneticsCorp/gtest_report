@@ -39,7 +39,12 @@ def render_report(
         tpl = env.get_template("sa_report.html")
         html = tpl.render(
             title=f"{project_name} - Static Analysis Report",
-            sa_data=sa_data
+            # 숫자값에 콤마포매팅을 직접 적용해서 넘김
+            sa_total_violations=f"{sa_data.get('total_violations', 0):,}",
+            sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
+            sa_severity_counts={k: f"{v:,}" for k, v in sa_data.get("severity_counts", {}).items()} if sa_data else {},
+            sa_ruleid_counts={k: f"{v:,}" for k, v in sa_data.get("ruleid_counts", {}).items()} if sa_data else {},
+            sa_data=sa_data  # 필요시 원본도 넘김
         )
         output_path.write_text(html, encoding="utf-8")
         return

@@ -69,10 +69,10 @@ def generate_sa_component_reports(report_xml_path: Path, output_dir: Path):
         output_file = output_dir / f"SA_Report_{comp}.html"
         html = template.render(
             component=comp,
-            total_violations=data["violations"],
-            severity_counts=data["severity_counts"],
-            ruleid_counts=data["ruleid_counts"],
-            file_counts=data["file_counts"],
+            total_violations=f"{data['violations']:,}",
+            severity_counts={k: f"{v:,}" for k, v in data["severity_counts"].items()},
+            ruleid_counts={k: f"{v:,}" for k, v in data["ruleid_counts"].items()},
+            file_counts={k: f"{v:,}" for k, v in data["file_counts"].items()},
             file_violations=data["file_violations"],
         )
         output_file.write_text(html, encoding="utf-8")

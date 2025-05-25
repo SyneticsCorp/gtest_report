@@ -15,26 +15,22 @@
       height: auto; /* 유동적 높이 */
       max-width: 700px;
     }
-
     .chart-box {
       height: 250px; /* 차트 높이 동일하게 고정 */
       min-width: 300px;
       position: relative;
       text-align: center;
     }
-
     .chart-box canvas {
       width: 100% !important;
       height: 100% !important;
     }
-
     .chart-box > div {
       margin-top: 0.5rem;
       font-weight: 600;
       font-size: 1.1rem;
       color: #333;
     }
-
     .ruleid-chart-container {
       width: 100%;
       height: 400px;
@@ -42,12 +38,10 @@
       margin-bottom: 3rem;
       text-align: center;
     }
-
     .ruleid-chart-container canvas {
       width: 100% !important;
       height: 100% !important;
     }
-
     table {
       border-collapse: collapse;
       width: 80%;
@@ -64,12 +58,10 @@
       background-color: #eee;
       font-weight: 700;
     }
-
     h1, h2, h3 {
       font-weight: 700;
       color: #222;
     }
-
     h3 {
       font-size: 1.3rem;
       margin: 2rem 0 1rem 0;
@@ -84,7 +76,7 @@
   <h2>Overall Summary</h2>
   <table>
     <tr><th>Total Components</th><td>{{ sa_data.total_components }}</td></tr>
-    <tr><th>Total Violations</th><td>{{ sa_data.total_violations }}</td></tr>
+    <tr><th>Total Violations</th><td><strong>{{ sa_total_violations }}</strong></td></tr>
   </table>
 
   <h3>Component-wise Violation Counts</h3>
@@ -97,7 +89,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for comp, count in sa_data.comp_counts.items() %}
+      {% for comp, count in sa_component_counts.items() %}
       <tr>
         <td>{{ comp }}</td>
         <td>{{ count }}</td>
@@ -113,7 +105,7 @@
       <tr><th>Severity</th><th>Violation Count</th></tr>
     </thead>
     <tbody>
-      {% for sev, count in sa_data.severity_counts.items() %}
+      {% for sev, count in sa_severity_counts.items() %}
       <tr><td>{{ sev }}</td><td>{{ count }}</td></tr>
       {% endfor %}
     </tbody>
@@ -125,17 +117,17 @@
       <tr><th>Rule ID</th><th>Violation Count</th></tr>
     </thead>
     <tbody>
-      {% set sorted_ruleids = sa_data.ruleid_counts.keys()|reject("equalto", "etc")|sort %}
+      {% set sorted_ruleids = sa_ruleid_counts.keys()|reject("equalto", "etc")|sort %}
       {% for rid in sorted_ruleids %}
       <tr>
         <td>{{ rid }}</td>
-        <td>{{ sa_data.ruleid_counts[rid] }}</td>
+        <td>{{ sa_ruleid_counts[rid] }}</td>
       </tr>
       {% endfor %}
-      {% if "etc" in sa_data.ruleid_counts %}
+      {% if "etc" in sa_ruleid_counts %}
       <tr>
         <td>etc</td>
-        <td>{{ sa_data.ruleid_counts["etc"] }}</td>
+        <td>{{ sa_ruleid_counts["etc"] }}</td>
       </tr>
       {% endif %}
     </tbody>

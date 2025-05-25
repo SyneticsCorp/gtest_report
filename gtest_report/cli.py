@@ -123,16 +123,17 @@ def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
 
         ts_str = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""
         link = f'<a href="{report_type}_Report.html">View Report</a>'
-        fail_html = f'<span style="color:red;">{failures}</span>' if failures else "0"
+        fail_html = f'<span style="color:red;">{failures:,}</span>' if failures else "0"
 
+        # 여기서 각 숫자에 콤마 적용!
         cells = [
             name,
-            str(total),
-            str(executed),
-            str(successes),
+            f"{total:,}",
+            f"{executed:,}",
+            f"{successes:,}",
             fail_html,
-            str(skipped_no_reason),
-            str(skipped_with_reason),
+            f"{skipped_no_reason:,}",
+            f"{skipped_with_reason:,}",
             ts_str,
             link,
         ]
@@ -213,6 +214,10 @@ def main():
         for rtype in REPORT_TYPES
     ]
 
+    # SA 숫자도 모두 콤마포매팅 적용!
+    sa_total_violations = f"{sa_data.get('total_violations', 0):,}" if sa_data else "0"
+    sa_component_counts = {k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {}
+
     tpl_dir = Path(__file__).parent / "templates"
     env = Environment(
         loader=FileSystemLoader(str(tpl_dir)),
@@ -227,8 +232,8 @@ def main():
         build_number=build_number,
         report_date=report_date,
         index_rows=index_rows,
-        sa_total_violations=sa_data.get("total_violations", 0) if sa_data else 0,
-        sa_component_counts=sa_data.get("comp_counts", {}) if sa_data else {},
+        sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
+        sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
     )
     (output_root / "index.html").write_text(html, encoding="utf-8")
     print(f"\nIndex generated at {output_root / 'index.html'}")
