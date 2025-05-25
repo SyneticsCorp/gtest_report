@@ -44,7 +44,7 @@ def render_report(
         output_path.write_text(html, encoding="utf-8")
         return
 
-    # Google Test 보고서 렌더링 기존 코드 (생략 가능, 앞서 작성한 내용 참고)
+    # Google Test 보고서 렌더링
     results, total, failures, skipped, timestamps = parse_files(xml_paths)
     executed = total - skipped
     passed = executed - failures
@@ -132,7 +132,8 @@ def render_report(
                 + row_html([suite, case_name, format_icon(case.status)])
                 + "</tr>"
             )
-        detail_parts.append("</table><br/>")
+        # <br/> 제거! 표 간 여백은 CSS의 .utests margin-bottom으로 조절
+        detail_parts.append("</table>")
 
     charts = {
         "exec_labels": jsonify(["Execution Rate (%)"]),
