@@ -23,7 +23,6 @@
       width: 100% !important;
       height: 100% !important;
     }
-    /* SA 요약 표 스타일 */
     section.sa-summary {
       margin-top: 2rem;
       border-top: 2px solid #333;
@@ -70,9 +69,7 @@
   </div>
 
   <script>
-  // 차트 인스턴스 저장 객체
   let chartMap = {};
-
   document.addEventListener('DOMContentLoaded', () => {
     Chart.register(ChartDataLabels);
     const commonOpts = {
@@ -87,11 +84,8 @@
         tooltip: { enabled: false }
       }
     };
-
-    // Chart 렌더링 함수
     function renderOrUpdateChart(chartId, chartType, chartData, chartOptions) {
       const ctx = document.getElementById(chartId).getContext('2d');
-      // 기존 차트가 있으면 destroy!
       if (chartMap[chartId]) {
         chartMap[chartId].destroy();
       }
@@ -101,26 +95,22 @@
         options: chartOptions,
       });
     }
-
     renderOrUpdateChart('execChart', 'pie', {
-      labels: ["Execution Rate (%)"],
-      datasets: [{ data: [100.0] }]
+      labels: {{ exec_labels|safe }},
+      datasets: [{ data: {{ exec_values|safe }} }]
     }, commonOpts);
-
     renderOrUpdateChart('execNoSkipChart', 'pie', {
-      labels: ["Execution Rate (without Skipped) (%)"],
-      datasets: [{ data: [100.0] }]
+      labels: {{ exec_no_skip_labels|safe }},
+      datasets: [{ data: {{ exec_no_skip_values|safe }} }]
     }, commonOpts);
-
     renderOrUpdateChart('passChart', 'pie', {
-      labels: ["Pass Rate (%)"],
-      datasets: [{ data: [100.0] }]
+      labels: {{ pass_labels|safe }},
+      datasets: [{ data: {{ pass_values|safe }} }]
     }, commonOpts);
   });
-</script>
+  </script>
 
-
-  <h2>Failed Test Cases</h2>
+  <h2>Failed {% if report_name == "Unit Integration Test" %}Test Suites{% else %}Test Cases{% endif %}</h2>
   {% if failed_rows|length > 1 %}
     <table class="failed_tests">
       {% for row in failed_rows %}
@@ -128,20 +118,24 @@
       {% endfor %}
     </table>
   {% else %}
-    <div>No failed tests</div>
+    <div>No {% if report_name == "Unit Integration Test" %}failed suites{% else %}failed tests{% endif %}</div>
   {% endif %}
 
+  {% if report_name != "Unit Integration Test" %}
   <h2>Test File Summary</h2>
   <table class="file_summary">
     {% for row in file_rows %}
       <tr>{{ row|safe }}</tr>
     {% endfor %}
   </table>
+  {% endif %}
 
-  <h2>Detailed Test Results</h2>
+  <h2>Detailed {% if report_name == "Unit Integration Test" %}Test Suites{% else %}Test Results{% endif %}</h2>
   <div style="margin:1rem 0;">
-    <input type="text" id="searchInput" placeholder="Search Test Name…" />
-    <label><input type="checkbox" id="failOnlyToggle" /> Show Only Failed Tests</label>
+    {% if report_name != "Unit Integration Test" %}
+      <input type="text" id="searchInput" placeholder="Search Test Name…" />
+      <label><input type="checkbox" id="failOnlyToggle" /> Show Only Failed Tests</label>
+    {% endif %}
   </div>
   <div id="detailsContainer">
     {% for detail in test_details %}

@@ -12,6 +12,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from .parser import parse_files
 from .builder.html_builder import render_report
 from .sa_component_report_generator import generate_sa_component_reports
+from .sa_summary_parser import parse_sa_file_enhanced
 
 REPORT_TYPES  = ["UT", "UIT", "SCT", "SCIT", "SRT"]
 DISPLAY_NAMES = {
@@ -30,110 +31,58 @@ def _worker(task):
     except Exception as e:
         return (rtype, False, str(e))
 
-def parse_sa_file_enhanced(report_xml_path: Path, debug: bool = False):
+def aggregate_suites_from_ut(results):
     """
-    PC Lint Plus report.xml 파싱
-    컴포넌트별, 심각도별 통계 + 룰 ID별 위반 수 추가
+    UT의 TestCaseResult 리스트로부터 Test Suite 단위 집계 수행
+    Test Suite 내 하나라도 실패 케이스 있으면 Suite 전체 실패 처리.
     """
-    from xml.dom.minidom import parse
-    from collections import defaultdict
-    from pathlib import Path
+    suite_status_map = {}  # suite_name -> status ('passed','failed','skipped')
+    timestamps = []
 
-    dom = parse(str(report_xml_path))
-    messages = dom.getElementsByTagName("message")
+    for fr in results:
+        if fr.timestamp:
+            timestamps.append(fr.timestamp)
+        suite_cases = defaultdict(list)
+        for case in fr.cases:
+            suite, _ = case.name.split('.', 1)
+            suite_cases[suite].append(case)
+        for suite, cases in suite_cases.items():
+            if any(c.status == 'failed' for c in cases):
+                suite_status_map[suite] = 'failed'
+            elif all(c.status == 'skipped' for c in cases):
+                if suite not in suite_status_map:
+                    suite_status_map[suite] = 'skipped'
+            else:
+                if suite not in suite_status_map:
+                    suite_status_map[suite] = 'passed'
 
-    comp_counts = defaultdict(int)
-    comp_files = defaultdict(set)
-    severity_counts = defaultdict(int)
-    ruleid_counts = defaultdict(int)
-    etc_files = []
+    total_suites = len(suite_status_map)
+    failures = sum(1 for s in suite_status_map.values() if s == 'failed')
+    skipped = sum(1 for s in suite_status_map.values() if s == 'skipped')
 
-    ruleid_pattern = re.compile(r"\[AUTOSAR Rule ([^\]]+)\]")
+    suite_results = [{'suite': suite, 'status': status} for suite, status in suite_status_map.items()]
+    return total_suites, failures, skipped, timestamps, suite_results
 
-    for msg in messages:
-        # 파일/컴포넌트 추출
-        file_node = msg.getElementsByTagName("file")
-        if not file_node or file_node[0].firstChild is None:
-            continue
-        file_path = file_node[0].firstChild.nodeValue.strip()
-        parts = Path(file_path).parts
-        component = "etc"
-        try:
-            idx = parts.index("para-api")
-            if idx + 1 < len(parts):
-                component = parts[idx + 1]
-        except ValueError:
-            pass
-
-        comp_counts[component] += 1
-        comp_files[component].add(file_path)
-
-        # 심각도 추출
-        type_node = msg.getElementsByTagName("type")
-        if type_node and type_node[0].firstChild:
-            severity = type_node[0].firstChild.nodeValue.strip()
-        else:
-            severity = "Unknown"
-        severity_counts[severity] += 1
-
-        # 룰ID 추출 (desc 태그)
-        desc_node = msg.getElementsByTagName("desc")
-        ruleid = "etc"
-        if desc_node and desc_node[0].firstChild:
-            desc_text = desc_node[0].firstChild.nodeValue.strip()
-            m = ruleid_pattern.search(desc_text)
-            if m:
-                ruleid = m.group(1)
-        ruleid_counts[ruleid] += 1
-
-        if component == "etc":
-            etc_files.append(file_path)
-
-    if debug and etc_files:
-        with open("etc.txt", "w", encoding="utf-8") as f:
-            for fp in etc_files:
-                f.write(fp + "\n")
-
-    return {
-        "total_components": len(comp_counts),
-        "total_files": sum(len(v) for v in comp_files.values()),
-        "comp_files_count": {k: len(v) for k, v in comp_files.items()},
-        "total_violations": sum(comp_counts.values()),
-        "comp_counts": dict(comp_counts),
-        "severity_counts": dict(severity_counts),
-        "ruleid_counts": dict(ruleid_counts),
-    }
-
-def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
+def build_index_cells_for_uit(report_type: str, xml_paths: list[Path]) -> str:
     name = DISPLAY_NAMES[report_type]
     if xml_paths:
-        results, total, failures, skipped, timestamps = parse_files(xml_paths)
+        results, _, _, _, timestamps = parse_files(xml_paths)
+        total, failures, skipped, _, _ = aggregate_suites_from_ut(results)
         executed = total - skipped
         successes = executed - failures
-
-        skipped_with_reason = 0
-        skipped_no_reason = 0
-        for fr in results:
-            for case in fr.cases:
-                if case.status == "skipped":
-                    if getattr(case, "failure_message", "").strip():
-                        skipped_with_reason += 1
-                    else:
-                        skipped_no_reason += 1
 
         ts_str = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""
         link = f'<a href="{report_type}_Report.html">View Report</a>'
         fail_html = f'<span style="color:red;">{failures:,}</span>' if failures else "0"
 
-        # 여기서 각 숫자에 콤마 적용!
         cells = [
             name,
             f"{total:,}",
             f"{executed:,}",
             f"{successes:,}",
             fail_html,
-            f"{skipped_no_reason:,}",
-            f"{skipped_with_reason:,}",
+            "0",  # skipped_no_reason placeholder
+            "0",  # skipped_with_reason placeholder
             ts_str,
             link,
         ]
@@ -141,6 +90,15 @@ def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
         cells = [name] + ["NT"] * 8
 
     return "".join(f"<td>{c}</td>" for c in cells)
+
+def _worker_uit(task):
+    rtype, project, name, xmls, out_root = task
+    try:
+        # UIT는 UT xmls 사용, Test Suite 단위로 집계 (필요시 커스텀 리포트 로직 추가 가능)
+        render_report(project, name, xmls, out_root / f"{rtype}_Report.html")
+        return (rtype, True, None)
+    except Exception as e:
+        return (rtype, False, str(e))
 
 def main():
     parser = argparse.ArgumentParser(
@@ -173,12 +131,20 @@ def main():
 
     tasks = []
     for rtype in REPORT_TYPES:
-        xmls = list((input_root / rtype).glob("*.xml"))
+        if rtype == "UIT":
+            xmls = list((input_root / "UT").glob("*.xml"))
+            cells_func = build_index_cells_for_uit
+            worker_func = _worker_uit
+        else:
+            xmls = list((input_root / rtype).glob("*.xml"))
+            cells_func = build_index_cells
+            worker_func = _worker
+
         print(f"Processing {rtype} ({DISPLAY_NAMES[rtype]}): {len(xmls)} XML files found.")
         tasks.append((rtype, project_name, DISPLAY_NAMES[rtype], xmls, output_root))
 
     with ProcessPoolExecutor() as executor:
-        future_map = {executor.submit(_worker, t): t[0] for t in tasks}
+        future_map = {executor.submit(worker_func, t): t[0] for t in tasks}
         for future in as_completed(future_map):
             rtype, success, err = future.result()
             if success:
@@ -186,7 +152,13 @@ def main():
             else:
                 print(f"[ERROR] {rtype}: {err}", file=sys.stderr)
 
-    # SA 보고서 처리 (기존 부분)
+    index_rows = [
+        build_index_cells_for_uit(rtype, list((input_root / "UT").glob("*.xml"))) if rtype == "UIT" else build_index_cells(rtype, list((input_root / rtype).glob("*.xml")))
+
+        for rtype in REPORT_TYPES
+    ]
+
+    # SA 보고서 처리
     sa_report_path = input_root / "SA" / "report.xml"
     sa_data = {}
 
@@ -203,20 +175,10 @@ def main():
         )
         print("  → SA_Report.html generated")
 
-        # **컴포넌트별 상세 보고서 생성 추가**
         generate_sa_component_reports(sa_report_path, output_root)
         print("  → SA Component detailed reports generated")
     else:
         print("No Static Analysis report found.")
-
-    index_rows = [
-        build_index_cells(rtype, list((input_root / rtype).glob("*.xml")))
-        for rtype in REPORT_TYPES
-    ]
-
-    # SA 숫자도 모두 콤마포매팅 적용!
-    sa_total_violations = f"{sa_data.get('total_violations', 0):,}" if sa_data else "0"
-    sa_component_counts = {k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {}
 
     tpl_dir = Path(__file__).parent / "templates"
     env = Environment(
@@ -238,6 +200,43 @@ def main():
     (output_root / "index.html").write_text(html, encoding="utf-8")
     print(f"\nIndex generated at {output_root / 'index.html'}")
     print("All reports processed successfully.")
+
+def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
+    name = DISPLAY_NAMES[report_type]
+    if xml_paths:
+        results, total, failures, skipped, timestamps = parse_files(xml_paths)
+        executed = total - skipped
+        successes = executed - failures
+
+        skipped_with_reason = 0
+        skipped_no_reason = 0
+        for fr in results:
+            for case in fr.cases:
+                if case.status == "skipped":
+                    if getattr(case, "failure_message", "").strip():
+                        skipped_with_reason += 1
+                    else:
+                        skipped_no_reason += 1
+
+        ts_str = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""
+        link = f'<a href="{report_type}_Report.html">View Report</a>'
+        fail_html = f'<span style="color:red;">{failures:,}</span>' if failures else "0"
+
+        cells = [
+            name,
+            f"{total:,}",
+            f"{executed:,}",
+            f"{successes:,}",
+            fail_html,
+            f"{skipped_no_reason:,}",
+            f"{skipped_with_reason:,}",
+            ts_str,
+            link,
+        ]
+    else:
+        cells = [name] + ["NT"] * 8
+
+    return "".join(f"<td>{c}</td>" for c in cells)
 
 if __name__ == "__main__":
     main()
