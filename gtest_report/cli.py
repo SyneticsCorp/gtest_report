@@ -185,8 +185,10 @@ def main():
         loader=FileSystemLoader(str(tpl_dir)),
         autoescape=select_autoescape(["html"])
     )
-    tpl = env.get_template("index.html")
-    html = tpl.render(
+    
+    # Generate compact version (main index.html)
+    tpl_compact = env.get_template("index_compact.html")
+    html_compact = tpl_compact.render(
         project_name=project_name,
         branch=branch,
         release_tag=release_tag,
@@ -197,8 +199,25 @@ def main():
         sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
         sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
     )
-    (output_root / "index.html").write_text(html, encoding="utf-8")
-    print(f"\nIndex generated at {output_root / 'index.html'}")
+    (output_root / "index.html").write_text(html_compact, encoding="utf-8")
+    print(f"\nCompact index generated at {output_root / 'index.html'}")
+    
+    # Generate original version (index_original.html)
+    tpl_original = env.get_template("index.html")
+    html_original = tpl_original.render(
+        project_name=project_name,
+        branch=branch,
+        release_tag=release_tag,
+        commit_id=commit_id,
+        build_number=build_number,
+        report_date=report_date,
+        index_rows=index_rows,
+        sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
+        sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
+    )
+    (output_root / "index_original.html").write_text(html_original, encoding="utf-8")
+    print(f"Original index generated at {output_root / 'index_original.html'}")
+    
     print("All reports processed successfully.")
 
 def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:

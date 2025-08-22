@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project_name }} Test Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+        
+        .compact-container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        /* 헤더 - 매우 컴팩트 */
+        .header-section {
+            background: white;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 0;
+        }
+        
+        .build-info-inline {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .build-info-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .build-info-label {
+            color: #6c757d;
+            font-weight: 600;
+        }
+        
+        .build-info-value {
+            color: #2c3e50;
+        }
+        
+        /* 메인 그리드 레이아웃 */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 10px;
+            height: calc(100vh - 100px);
+        }
+        
+        /* 왼쪽 총 요약 */
+        .summary-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        }
+        
+        .summary-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .total-stats {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .stat-box {
+            padding: 12px;
+            border-radius: 6px;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .stat-box.total {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .stat-box.passed {
+            background: #d4edda;
+        }
+        
+        .stat-box.failed {
+            background: #f8d7da;
+        }
+        
+        .stat-box.skipped {
+            background: #fff3cd;
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+        
+        .pass-rate-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .pass-rate-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        
+        .pass-rate-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        
+        .chart-mini {
+            margin-top: 20px;
+            height: 200px;
+        }
+        
+        /* 오른쪽 상세 테이블 */
+        .details-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            overflow-y: auto;
+        }
+        
+        .stage-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .stage-table th {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            text-align: left;
+            font-size: 0.85rem;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .stage-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+        }
+        
+        .stage-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .stage-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .result-badges {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .result-badge {
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        .result-badge.passed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .result-badge.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .result-badge.skipped {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .report-link {
+            padding: 4px 10px;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        
+        .report-link:hover {
+            background: #0056b3;
+            color: white;
+            transform: translateY(-1px);
+        }
+        
+        .timestamp {
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        
+        /* 반응형 조정 */
+        @media (max-width: 1400px) {
+            .main-grid {
+                grid-template-columns: 250px 1fr;
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            .pass-rate-value {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="compact-container">
+        <!-- 컴팩트 헤더 -->
+        <div class="header-section">
+            <h1 class="header-title">
+                <i class="fas fa-chart-line"></i> {{ project_name }} Test Dashboard
+            </h1>
+            <div class="build-info-inline">
+                {% if branch %}
+                <div class="build-info-item">
+                    <span class="build-info-label">Branch:</span>
+                    <span class="build-info-value">{{ branch }}</span>
+                </div>
+                {% endif %}
+                {% if build_number %}
+                <div class="build-info-item">
+                    <span class="build-info-label">Build:</span>
+                    <span class="build-info-value">#{{ build_number }}</span>
+                </div>
+                {% endif %}
+                {% if commit_id %}
+                <div class="build-info-item">
+                    <span class="build-info-label">Commit:</span>
+                    <span class="build-info-value">{{ commit_id[:8] if commit_id|length > 8 else commit_id }}</span>
+                </div>
+                {% endif %}
+                {% if report_date %}
+                <div class="build-info-item">
+                    <span class="build-info-label">Generated:</span>
+                    <span class="build-info-value">{{ report_date }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- 메인 콘텐츠 그리드 -->
+        <div class="main-grid">
+            <!-- 왼쪽: 총 요약 -->
+            <div class="summary-panel">
+                <div class="summary-title">Overall Summary</div>
+                
+                <!-- Calculate totals properly -->
+                {% set ns = namespace(total_tests=0, total_passed=0, total_failed=0, total_skipped=0) %}
+                
+                {% for row in index_rows %}
+                    {% set cells = row.replace('<td>', '').replace('</td>', '').split('</td>') %}
+                    {% set parts = row.split('</td>') %}
+                    
+                    {% if parts|length >= 7 %}
+                        {% set total_str = parts[1].replace('<td>', '').replace(',', '') %}
+                        {% set passed_str = parts[3].replace('<td>', '').replace(',', '') %}
+                        {% set failed_str = parts[4] %}
+                        {% set skip_no_str = parts[5].replace('<td>', '').replace(',', '') %}
+                        {% set skip_yes_str = parts[6].replace('<td>', '').replace(',', '') %}
+                        
+                        {% if 'NT' not in total_str %}
+                            {% set total = total_str|int %}
+                            {% set passed = passed_str|int %}
+                            
+                            {% if '<span' in failed_str %}
+                                {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
+                            {% else %}
+                                {% set failed = failed_str.replace('<td>', '').replace(',', '')|int %}
+                            {% endif %}
+                            
+                            {% set skip_no = skip_no_str|int %}
+                            {% set skip_yes = skip_yes_str|int %}
+                            
+                            {% set ns.total_tests = ns.total_tests + total %}
+                            {% set ns.total_passed = ns.total_passed + passed %}
+                            {% set ns.total_failed = ns.total_failed + failed %}
+                            {% set ns.total_skipped = ns.total_skipped + skip_no + skip_yes %}
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+                
+                <div class="total-stats">
+                    <div class="stat-box total">
+                        <span class="stat-label">Total Tests</span>
+                        <span class="stat-value">{{ "{:,}".format(ns.total_tests) }}</span>
+                    </div>
+                    <div class="stat-box passed">
+                        <span class="stat-label">Passed</span>
+                        <span class="stat-value" style="color: #155724;">{{ "{:,}".format(ns.total_passed) }}</span>
+                    </div>
+                    <div class="stat-box failed">
+                        <span class="stat-label">Failed</span>
+                        <span class="stat-value" style="color: #721c24;">{{ "{:,}".format(ns.total_failed) }}</span>
+                    </div>
+                    <div class="stat-box skipped">
+                        <span class="stat-label">Skipped</span>
+                        <span class="stat-value" style="color: #856404;">{{ "{:,}".format(ns.total_skipped) }}</span>
+                    </div>
+                </div>
+                
+                <div class="pass-rate-box">
+                    <div class="pass-rate-label">Overall Pass Rate</div>
+                    <div class="pass-rate-value" style="color: {% if ns.total_tests > 0 and ns.total_passed / ns.total_tests > 0.9 %}#27ae60{% elif ns.total_tests > 0 and ns.total_passed / ns.total_tests > 0.7 %}#f39c12{% else %}#e74c3c{% endif %};">
+                        {% if ns.total_tests > 0 %}
+                            {{ "%.1f"|format((ns.total_passed / ns.total_tests * 100)) }}%
+                        {% else %}
+                            0%
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="chart-mini">
+                    <canvas id="miniChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- 오른쪽: 상세 테이블 -->
+            <div class="details-panel">
+                <div class="summary-title">Test Results by Stage</div>
+                
+                <table class="stage-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25%;">Test Stage</th>
+                            <th style="width: 10%;">Total</th>
+                            <th style="width: 10%;">Passed</th>
+                            <th style="width: 10%;">Failed</th>
+                            <th style="width: 10%;">Skipped</th>
+                            <th style="width: 10%;">Pass Rate</th>
+                            <th style="width: 15%;">Timestamp</th>
+                            <th style="width: 10%;">Report</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in index_rows %}
+                            {% set parts = row.split('</td>') %}
+                            {% if parts|length >= 8 %}
+                                {% set name = parts[0].replace('<td>', '') %}
+                                {% set total_str = parts[1].replace('<td>', '').replace(',', '') %}
+                                
+                                {% if 'NT' not in total_str %}
+                                    {% set total = total_str|int %}
+                                    {% set executed = parts[2].replace('<td>', '').replace(',', '')|int %}
+                                    {% set passed = parts[3].replace('<td>', '').replace(',', '')|int %}
+                                    
+                                    {% set failed_str = parts[4] %}
+                                    {% if '<span' in failed_str %}
+                                        {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
+                                    {% else %}
+                                        {% set failed = failed_str.replace('<td>', '').replace(',', '')|int %}
+                                    {% endif %}
+                                    
+                                    {% set skip_no = parts[5].replace('<td>', '').replace(',', '')|int %}
+                                    {% set skip_yes = parts[6].replace('<td>', '').replace(',', '')|int %}
+                                    {% set timestamp = parts[7].replace('<td>', '') %}
+                                    {% set report_link = parts[8] %}
+                                    
+                                    {% set pass_rate = (passed / total * 100) if total > 0 else 0 %}
+                                    
+                                    <tr>
+                                        <td class="stage-name">{{ name }}</td>
+                                        <td><strong>{{ "{:,}".format(total) }}</strong></td>
+                                        <td><span class="result-badge passed">{{ "{:,}".format(passed) }}</span></td>
+                                        <td><span class="result-badge failed">{{ "{:,}".format(failed) }}</span></td>
+                                        <td><span class="result-badge skipped">{{ "{:,}".format(skip_no + skip_yes) }}</span></td>
+                                        <td>
+                                            <span style="font-weight: bold; color: {% if pass_rate > 90 %}#27ae60{% elif pass_rate > 70 %}#f39c12{% else %}#e74c3c{% endif %};">
+                                                {{ "%.1f"|format(pass_rate) }}%
+                                            </span>
+                                        </td>
+                                        <td class="timestamp">{{ timestamp }}</td>
+                                        <td>{{ report_link|safe }}</td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td class="stage-name">{{ name }}</td>
+                                        <td colspan="7" style="text-align: center; color: #6c757d;">Not Tested</td>
+                                    </tr>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <!-- Static Analysis Summary -->
+                <div style="margin-top: 20px;">
+                    <div class="summary-title" style="margin-top: 20px;">Static Analysis Summary</div>
+                    
+                    <table class="stage-table" style="margin-top: 10px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 60%;">Component</th>
+                                <th style="width: 40%;">Violation Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="background: #f8f9fa; font-weight: bold;">
+                                <td>Total Violations</td>
+                                <td>
+                                    <span style="color: {% if sa_total_violations and sa_total_violations != '0' %}#e74c3c{% else %}#27ae60{% endif %};">
+                                        {{ sa_total_violations if sa_total_violations else "0" }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% if sa_component_counts %}
+                                {% for comp, count in sa_component_counts.items() %}
+                                <tr>
+                                    <td>{{ comp }}</td>
+                                    <td>{{ count }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    
+                    {% if sa_total_violations and sa_total_violations != "0" %}
+                    <div style="margin-top: 10px; text-align: center;">
+                        <a href="SA_Report.html" class="report-link">
+                            <i class="fas fa-external-link-alt"></i> View Detailed Static Analysis Report
+                        </a>
+                    </div>
+                    {% else %}
+                    <div style="margin-top: 10px; text-align: center; color: #6c757d; font-size: 0.9rem;">
+                        No static analysis violations found
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const ctx = document.getElementById('miniChart');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Passed', 'Failed', 'Skipped'],
+                    datasets: [{
+                        data: [{{ ns.total_passed }}, {{ ns.total_failed }}, {{ ns.total_skipped }}],
+                        backgroundColor: ['#27ae60', '#e74c3c', '#f39c12'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 10,
+                                font: { size: 11 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
