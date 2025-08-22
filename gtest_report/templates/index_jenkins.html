@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ project_name }} Test Dashboard</title>
+    <link rel="stylesheet" href="html_resources/gtest_report.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        
+        .dashboard-container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        /* Header */
+        .header-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header-title {
+            color: #2c3e50;
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        
+        .build-info {
+            display: table;
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .build-info-row {
+            display: table-row;
+        }
+        
+        .build-info-label {
+            display: table-cell;
+            padding: 8px;
+            background: #f8f9fa;
+            font-weight: bold;
+            width: 150px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .build-info-value {
+            display: table-cell;
+            padding: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        /* Summary Stats */
+        .summary-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+        
+        .stats-grid {
+            display: table;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        
+        .stats-row {
+            display: table-row;
+        }
+        
+        .stat-item {
+            display: table-cell;
+            text-align: center;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            width: 25%;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-top: 5px;
+            text-transform: uppercase;
+        }
+        
+        .stat-item.passed {
+            background: #d4edda;
+        }
+        
+        .stat-item.passed .stat-value {
+            color: #155724;
+        }
+        
+        .stat-item.failed {
+            background: #f8d7da;
+        }
+        
+        .stat-item.failed .stat-value {
+            color: #721c24;
+        }
+        
+        .stat-item.skipped {
+            background: #fff3cd;
+        }
+        
+        .stat-item.skipped .stat-value {
+            color: #856404;
+        }
+        
+        /* Pass Rate */
+        .pass-rate-container {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .pass-rate-label {
+            font-size: 1.2rem;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+        
+        .pass-rate-value {
+            font-size: 3rem;
+            font-weight: bold;
+        }
+        
+        .pass-rate-good {
+            color: #28a745;
+        }
+        
+        .pass-rate-warning {
+            color: #ffc107;
+        }
+        
+        .pass-rate-danger {
+            color: #dc3545;
+        }
+        
+        /* Test Results Table */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .results-table th {
+            background: #2c3e50;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: normal;
+        }
+        
+        .results-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .results-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .results-table tbody tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .stage-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        
+        .badge-passed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .badge-skipped {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        /* Static Analysis */
+        .sa-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .sa-table th {
+            background: #f8f9fa;
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #dee2e6;
+            font-weight: bold;
+        }
+        
+        .sa-table td {
+            padding: 10px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .sa-total-row {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .sa-total-row td:last-child {
+            color: #28a745;
+        }
+        
+        .no-violations {
+            text-align: center;
+            color: #6c757d;
+            padding: 20px;
+            font-style: italic;
+        }
+        
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header-card">
+            <h1 class="header-title">{{ project_name }} Test Dashboard</h1>
+            
+            <table class="build-info">
+                {% if branch %}
+                <tr class="build-info-row">
+                    <td class="build-info-label">Branch</td>
+                    <td class="build-info-value">{{ branch }}</td>
+                </tr>
+                {% endif %}
+                {% if build_number %}
+                <tr class="build-info-row">
+                    <td class="build-info-label">Build Number</td>
+                    <td class="build-info-value">#{{ build_number }}</td>
+                </tr>
+                {% endif %}
+                {% if commit_id %}
+                <tr class="build-info-row">
+                    <td class="build-info-label">Commit</td>
+                    <td class="build-info-value">{{ commit_id[:8] if commit_id|length > 8 else commit_id }}</td>
+                </tr>
+                {% endif %}
+                {% if report_date %}
+                <tr class="build-info-row">
+                    <td class="build-info-label">Generated</td>
+                    <td class="build-info-value">{{ report_date }}</td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+        
+        <!-- Overall Summary -->
+        <div class="summary-card">
+            <h2 class="section-title">Overall Summary</h2>
+            
+            <!-- Calculate totals -->
+            {% set ns = namespace(total_tests=0, total_passed=0, total_failed=0, total_skipped=0) %}
+            
+            {% for row in index_rows %}
+                {% set parts = row.replace('<td>', '').split('</td>') %}
+                {% if parts|length >= 7 %}
+                    {% set total_str = parts[1].replace(',', '') %}
+                    {% set passed_str = parts[3].replace(',', '') %}
+                    {% set failed_str = parts[4] %}
+                    {% set skip_no_str = parts[5].replace(',', '') %}
+                    {% set skip_yes_str = parts[6].replace(',', '') %}
+                    
+                    {% if 'NT' not in total_str %}
+                        {% set total = total_str|int %}
+                        {% set passed = passed_str|int %}
+                        
+                        {% if '<span' in failed_str %}
+                            {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
+                        {% else %}
+                            {% set failed = failed_str.replace(',', '')|int %}
+                        {% endif %}
+                        
+                        {% set skip_no = skip_no_str|int %}
+                        {% set skip_yes = skip_yes_str|int %}
+                        
+                        {% set ns.total_tests = ns.total_tests + total %}
+                        {% set ns.total_passed = ns.total_passed + passed %}
+                        {% set ns.total_failed = ns.total_failed + failed %}
+                        {% set ns.total_skipped = ns.total_skipped + skip_no + skip_yes %}
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+            
+            <table class="stats-grid">
+                <tr class="stats-row">
+                    <td class="stat-item">
+                        <div class="stat-value">{{ "{:,}".format(ns.total_tests) }}</div>
+                        <div class="stat-label">Total Tests</div>
+                    </td>
+                    <td class="stat-item passed">
+                        <div class="stat-value">{{ "{:,}".format(ns.total_passed) }}</div>
+                        <div class="stat-label">Passed</div>
+                    </td>
+                    <td class="stat-item failed">
+                        <div class="stat-value">{{ "{:,}".format(ns.total_failed) }}</div>
+                        <div class="stat-label">Failed</div>
+                    </td>
+                    <td class="stat-item skipped">
+                        <div class="stat-value">{{ "{:,}".format(ns.total_skipped) }}</div>
+                        <div class="stat-label">Skipped</div>
+                    </td>
+                </tr>
+            </table>
+            
+            {% if ns.total_tests > 0 %}
+            {% set pass_rate = (ns.total_passed / ns.total_tests * 100) %}
+            <div class="pass-rate-container">
+                <div class="pass-rate-label">Overall Pass Rate</div>
+                <div class="pass-rate-value {% if pass_rate > 90 %}pass-rate-good{% elif pass_rate > 70 %}pass-rate-warning{% else %}pass-rate-danger{% endif %}">
+                    {{ "%.1f"|format(pass_rate) }}%
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Test Results by Stage -->
+        <div class="summary-card">
+            <h2 class="section-title">Test Results by Stage</h2>
+            
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Test Stage</th>
+                        <th>Total</th>
+                        <th>Passed</th>
+                        <th>Failed</th>
+                        <th>Skipped</th>
+                        <th>Pass Rate</th>
+                        <th>Timestamp</th>
+                        <th>Report</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in index_rows %}
+                        {% set parts = row.split('</td>') %}
+                        {% if parts|length >= 8 %}
+                            {% set name = parts[0].replace('<td>', '') %}
+                            {% set total_str = parts[1].replace('<td>', '').replace(',', '') %}
+                            
+                            {% if 'NT' not in total_str %}
+                                {% set total = total_str|int %}
+                                {% set executed = parts[2].replace('<td>', '').replace(',', '')|int %}
+                                {% set passed = parts[3].replace('<td>', '').replace(',', '')|int %}
+                                
+                                {% set failed_str = parts[4] %}
+                                {% if '<span' in failed_str %}
+                                    {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
+                                {% else %}
+                                    {% set failed = failed_str.replace('<td>', '').replace(',', '')|int %}
+                                {% endif %}
+                                
+                                {% set skip_no = parts[5].replace('<td>', '').replace(',', '')|int %}
+                                {% set skip_yes = parts[6].replace('<td>', '').replace(',', '')|int %}
+                                {% set timestamp = parts[7].replace('<td>', '') %}
+                                {% set report_link = parts[8] %}
+                                
+                                {% set pass_rate = (passed / total * 100) if total > 0 else 0 %}
+                                
+                                <tr>
+                                    <td class="stage-name">{{ name }}</td>
+                                    <td><strong>{{ "{:,}".format(total) }}</strong></td>
+                                    <td><span class="badge badge-passed">{{ "{:,}".format(passed) }}</span></td>
+                                    <td><span class="badge badge-failed">{{ "{:,}".format(failed) }}</span></td>
+                                    <td><span class="badge badge-skipped">{{ "{:,}".format(skip_no + skip_yes) }}</span></td>
+                                    <td>
+                                        <strong style="color: {% if pass_rate > 90 %}#28a745{% elif pass_rate > 70 %}#ffc107{% else %}#dc3545{% endif %};">
+                                            {{ "%.1f"|format(pass_rate) }}%
+                                        </strong>
+                                    </td>
+                                    <td>{{ timestamp }}</td>
+                                    <td>{{ report_link|safe }}</td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td class="stage-name">{{ name }}</td>
+                                    <td colspan="7" style="text-align: center; color: #6c757d;">Not Tested</td>
+                                </tr>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Static Analysis Summary -->
+        <div class="summary-card">
+            <h2 class="section-title">Static Analysis Summary</h2>
+            
+            <table class="sa-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60%;">Component</th>
+                        <th style="width: 40%;">Violation Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="sa-total-row">
+                        <td>Total Violations</td>
+                        <td>{{ sa_total_violations if sa_total_violations else "0" }}</td>
+                    </tr>
+                    {% if sa_component_counts %}
+                        {% for comp, count in sa_component_counts.items() %}
+                        <tr>
+                            <td>{{ comp }}</td>
+                            <td>{{ count }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+            
+            {% if sa_total_violations and sa_total_violations != "0" %}
+                <p style="margin-top: 15px;">
+                    <a href="SA_Report.html">View Detailed Static Analysis Report</a>
+                </p>
+            {% else %}
+                <p class="no-violations">No static analysis violations found</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

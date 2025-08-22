@@ -186,9 +186,9 @@ def main():
         autoescape=select_autoescape(["html"])
     )
     
-    # Generate compact version (main index.html)
-    tpl_compact = env.get_template("index_compact.html")
-    html_compact = tpl_compact.render(
+    # Generate Jenkins-friendly version (main index.html)
+    tpl_jenkins = env.get_template("index_jenkins.html")
+    html_jenkins = tpl_jenkins.render(
         project_name=project_name,
         branch=branch,
         release_tag=release_tag,
@@ -199,8 +199,8 @@ def main():
         sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
         sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
     )
-    (output_root / "index.html").write_text(html_compact, encoding="utf-8")
-    print(f"\nCompact index generated at {output_root / 'index.html'}")
+    (output_root / "index.html").write_text(html_jenkins, encoding="utf-8")
+    print(f"\nJenkins index generated at {output_root / 'index.html'}")
     
     # Generate original version (index_original.html)
     tpl_original = env.get_template("index.html")
