@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <title>{{ title }}</title>
   <link rel="stylesheet" href="html_resources/gtest_report.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="html_resources/chart.umd.min.js"></script>
+  <script src="html_resources/chartjs-plugin-datalabels.min.js"></script>
   <script src="html_resources/extraScript.js"></script>
+  <script src="html_resources/charts.js"></script>
   <style>
     .chart-container {
       display: flex;
@@ -55,60 +56,20 @@
 
   <div class="chart-container">
     <div class="chart-box">
-      <canvas id="execChart"></canvas>
+      <canvas id="execChart" data-labels='{{ exec_labels|safe }}' data-values='{{ exec_values|safe }}'></canvas>
       <div>Execution Rate (%)</div>
     </div>
     <div class="chart-box">
-      <canvas id="execNoSkipChart"></canvas>
+      <canvas id="execNoSkipChart" data-labels='{{ exec_no_skip_labels|safe }}' data-values='{{ exec_no_skip_values|safe }}'></canvas>
       <div>Execution Rate (without Skipped) (%)</div>
     </div>
     <div class="chart-box">
-      <canvas id="passChart"></canvas>
+      <canvas id="passChart" data-labels='{{ pass_labels|safe }}' data-values='{{ pass_values|safe }}'></canvas>
       <div>Pass Rate (%)</div>
     </div>
   </div>
 
-  <script>
-  let chartMap = {};
-  document.addEventListener('DOMContentLoaded', () => {
-    Chart.register(ChartDataLabels);
-    const commonOpts = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        datalabels: {
-          formatter: v => v,
-          color: '#fff',
-          font: { weight: 'bold', size: 14 }
-        },
-        tooltip: { enabled: false }
-      }
-    };
-    function renderOrUpdateChart(chartId, chartType, chartData, chartOptions) {
-      const ctx = document.getElementById(chartId).getContext('2d');
-      if (chartMap[chartId]) {
-        chartMap[chartId].destroy();
-      }
-      chartMap[chartId] = new Chart(ctx, {
-        type: chartType,
-        data: chartData,
-        options: chartOptions,
-      });
-    }
-    renderOrUpdateChart('execChart', 'pie', {
-      labels: {{ exec_labels|safe }},
-      datasets: [{ data: {{ exec_values|safe }} }]
-    }, commonOpts);
-    renderOrUpdateChart('execNoSkipChart', 'pie', {
-      labels: {{ exec_no_skip_labels|safe }},
-      datasets: [{ data: {{ exec_no_skip_values|safe }} }]
-    }, commonOpts);
-    renderOrUpdateChart('passChart', 'pie', {
-      labels: {{ pass_labels|safe }},
-      datasets: [{ data: {{ pass_values|safe }} }]
-    }, commonOpts);
-  });
-  </script>
+  
 
   <div class="legend" style="margin: 0.75rem 0; font-size: 0.95em;">
     <strong>Legend:</strong>
