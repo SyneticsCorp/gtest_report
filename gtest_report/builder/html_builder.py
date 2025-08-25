@@ -8,6 +8,7 @@ from .utils import row_html, sanitize_id, jsonify
 
 ICON_FILES = {
     "passed": "gtest_report_ok.png",
+    "success": "gtest_report_ok.png",
     "failed": "gtest_report_notok.png",
     "skipped": "gtest_report_disable.png",
 }
