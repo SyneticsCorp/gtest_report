@@ -110,15 +110,60 @@
   });
   </script>
 
+  <div class="legend" style="margin: 0.75rem 0; font-size: 0.95em;">
+    <strong>Legend:</strong>
+    <span style="margin-left: 0.75rem; margin-right: 1rem;">
+      <img src="html_resources/gtest_report_ok.png" alt="passed" class="icon" /> Passed
+    </span>
+    <span style="margin-right: 1rem;">
+      <img src="html_resources/gtest_report_notok.png" alt="failed" class="icon" /> Failed
+    </span>
+    <span>
+      <img src="html_resources/gtest_report_disable.png" alt="skipped" class="icon" /> Skipped
+    </span>
+  </div>
+
   <h2>Failed {% if report_name == "Unit Integration Test" %}Test Suites{% else %}Test Cases{% endif %}</h2>
   {% if failed_rows|length > 1 %}
     <table class="failed_tests">
+      {% if report_name != "Unit Integration Test" %}
+      <colgroup>
+        <col style="width:18%">
+        <col style="width:21%">
+        <col style="width:5%">
+        <col style="width:56%">
+      </colgroup>
+      {% else %}
+      <colgroup>
+        <col style="width:60%">
+        <col style="width:40%">
+      </colgroup>
+      {% endif %}
       {% for row in failed_rows %}
         <tr>{{ row|safe }}</tr>
       {% endfor %}
     </table>
   {% else %}
     <div>No {% if report_name == "Unit Integration Test" %}failed suites{% else %}failed tests{% endif %}</div>
+  {% endif %}
+
+  {% if report_name != "Unit Integration Test" %}
+  <h2>Skipped Test Cases</h2>
+  {% if skipped_rows|length > 1 %}
+    <table class="failed_tests">
+      <colgroup>
+        <col style="width:18%">
+        <col style="width:21%">
+        <col style="width:5%">
+        <col style="width:56%">
+      </colgroup>
+      {% for row in skipped_rows %}
+        <tr>{{ row|safe }}</tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <div>No skipped tests</div>
+  {% endif %}
   {% endif %}
 
   {% if report_name != "Unit Integration Test" %}
@@ -141,6 +186,19 @@
     {% for detail in test_details %}
       {{ detail|safe }}
     {% endfor %}
+  </div>
+
+  <div class="legend" style="margin-top: 0.75rem; font-size: 0.95em;">
+    <strong>Legend:</strong>
+    <span style="margin-left: 0.75rem; margin-right: 1rem;">
+      <img src="html_resources/gtest_report_ok.png" alt="passed" class="icon" /> Passed
+    </span>
+    <span style="margin-right: 1rem;">
+      <img src="html_resources/gtest_report_notok.png" alt="failed" class="icon" /> Failed
+    </span>
+    <span>
+      <img src="html_resources/gtest_report_disable.png" alt="skipped" class="icon" /> Skipped
+    </span>
   </div>
 
   {% if has_sa_summary %}

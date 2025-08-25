@@ -1,4 +1,5 @@
 import shutil
+import html as html_lib
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from collections import defaultdict
@@ -167,14 +168,22 @@ def render_report(project_name, report_name, xml_paths, output_path,
         row_html(["Earliest Timestamp", earliest]),
     ]
 
-    failed_rows = ['<tr><th>Test Suite</th><th>Test Case</th><th>Result</th></tr>']
+    failed_rows = ['<tr><th>Test Suite</th><th>Test Case</th><th>Result</th><th>Reason</th></tr>']
+    skipped_rows = ['<tr><th>Test Suite</th><th>Test Case</th><th>Result</th><th>Reason</th></tr>']
     for fr in results:
         for case in fr.cases:
             if case.status == "failed":
                 suite, case_name = case.name.split(".", 1)
                 aid = sanitize_id(f"{fr.filename}_{case.name}")
                 link = f'<a href="#test_{aid}">{case_name}</a>'
-                failed_rows.append(f"<tr><td>{suite}</td><td>{link}</td><td>{format_icon(case.status)}</td></tr>")
+                reason = html_lib.escape(case.failure_message or "")
+                failed_rows.append(f"<tr><td>{suite}</td><td>{link}</td><td>{format_icon(case.status)}</td><td>{reason}</td></tr>")
+            elif case.status == "skipped":
+                suite, case_name = case.name.split(".", 1)
+                aid = sanitize_id(f"{fr.filename}_{case.name}")
+                link = f'<a href="#test_{aid}">{case_name}</a>'
+                reason = html_lib.escape(case.failure_message or "")
+                skipped_rows.append(f"<tr><td>{suite}</td><td>{link}</td><td>{format_icon(case.status)}</td><td>{reason}</td></tr>")
 
     file_rows = [
         '<tr><th>Test File</th><th>Total Tests</th><th>Failed</th><th>Timestamp</th></tr>'
@@ -192,9 +201,9 @@ def render_report(project_name, report_name, xml_paths, output_path,
         detail_parts.append(f'<h3 id="detail_{fr.filename}">{fr.filename}</h3>')
         detail_parts.append("""<table class="utests">
   <colgroup>
-    <col style="width:40%;">
-    <col style="width:40%;">
-    <col style="width:20%;">
+    <col style="width:46%;">
+    <col style="width:46%;">
+    <col style="width:8%;">
   </colgroup>""")
         detail_parts.append('<tr><th>Test Suite</th><th>Test Case</th><th>Result</th></tr>')
         for case in fr.cases:
@@ -218,6 +227,7 @@ def render_report(project_name, report_name, xml_paths, output_path,
         title=f"{project_name} {report_name}",
         overall_rows=overall_rows,
         failed_rows=failed_rows,
+        skipped_rows=skipped_rows,
         file_rows=file_rows,
         test_details=detail_parts,
         **charts,

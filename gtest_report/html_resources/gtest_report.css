@@ -33,6 +33,7 @@ table td {
   border: 1px solid #ccc;
   padding: 0.5rem 0.75rem;
   text-align: left;
+  vertical-align: top; /* 긴 내용 상단 정렬 */
 }
 table th {
   background-color: #f5f5f5;
@@ -58,16 +59,50 @@ table tr:nth-child(even) td {
 .file_summary td { }
 
 /* Failed Tests */
-.failed_tests { }
+.failed_tests { 
+  table-layout: fixed; /* 명시적 열 폭 적용 */
+}
 .failed_tests th,
 .failed_tests td { }
+/* Failed 표 열 너비 지정: Suite | Case | Result | Reason */
+.failed_tests th:nth-child(1), .failed_tests td:nth-child(1) { width: 18%; }
+.failed_tests th:nth-child(2), .failed_tests td:nth-child(2) { width: 21%; }
+.failed_tests th:nth-child(3), .failed_tests td:nth-child(3) { width: 5%; }
+.failed_tests th:nth-child(4), .failed_tests td:nth-child(4) { width: 56%; }
+/* 1,2열 텍스트 줄바꿈 강제 (길고 공백없는 이름 방지) */
+.failed_tests td:nth-child(1),
+.failed_tests td:nth-child(2) {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* 긴 Reason 텍스트 줄바꿈 처리 */
+.failed_tests td:last-child,
+.utests td:last-child {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
 
 /* Test Details */
 .utests { 
   margin-bottom: 1.2rem; /* 표 간 여백 최소화 */
+  table-layout: fixed; /* 명시적 열 폭 적용 */
 }
 .utests th,
 .utests td { }
+/* 상세 표 열 너비 지정: Suite | Case | Result */
+.utests th:nth-child(1), .utests td:nth-child(1) { width: 46%; }
+.utests th:nth-child(2), .utests td:nth-child(2) { width: 46%; }
+.utests th:nth-child(3), .utests td:nth-child(3) { width: 8%; }
+/* 상세 표 1,2열 줄바꿈 강제 */
+.utests td:nth-child(1),
+.utests td:nth-child(2) {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
 
 /* Jenkins 빌드 정보 테이블 */
 .build_info {
