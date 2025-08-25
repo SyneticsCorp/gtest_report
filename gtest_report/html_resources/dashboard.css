@@ -1,0 +1,269 @@
+/* Dashboard Custom Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f2f5;
+    padding: 10px;
+    overflow-x: hidden;
+}
+
+.compact-container {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+/* 헤더 - 매우 컴팩트 */
+.header-section {
+    background: white;
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.build-info-inline {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.build-info-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.9rem;
+}
+
+.build-info-label {
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.build-info-value {
+    color: #2c3e50;
+}
+
+/* 메인 그리드 레이아웃 */
+.main-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 10px;
+    height: calc(100vh - 100px);
+}
+
+/* 왼쪽 총 요약 */
+.summary-panel {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.summary-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.total-stats {
+    display: grid;
+    gap: 10px;
+}
+
+.stat-box {
+    padding: 12px;
+    border-radius: 6px;
+    background: #f8f9fa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-box.total {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.stat-box.passed {
+    background: #d4edda;
+}
+
+.stat-box.failed {
+    background: #f8d7da;
+}
+
+.stat-box.skipped {
+    background: #fff3cd;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+}
+
+.pass-rate-box {
+    margin-top: 20px;
+    padding: 15px;
+    background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+    border-radius: 6px;
+    text-align: center;
+}
+
+.pass-rate-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.pass-rate-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+.chart-mini {
+    margin-top: 20px;
+    height: 200px;
+}
+
+/* 오른쪽 상세 테이블 */
+.details-panel {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    overflow-y: auto;
+}
+
+.stage-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.stage-table th {
+    background: #f8f9fa;
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 0.85rem;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.stage-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.9rem;
+}
+
+.stage-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.stage-name {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.result-badges {
+    display: flex;
+    gap: 10px;
+}
+
+.result-badge {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    min-width: 50px;
+    text-align: center;
+}
+
+.result-badge.passed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.result-badge.failed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.result-badge.skipped {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.report-link {
+    padding: 4px 10px;
+    background: #007bff;
+    color: white;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.report-link:hover {
+    background: #0056b3;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.timestamp {
+    color: #6c757d;
+    font-size: 0.8rem;
+}
+
+/* Pass rate color classes */
+.pass-rate-good {
+    color: #27ae60;
+}
+
+.pass-rate-warning {
+    color: #f39c12;
+}
+
+.pass-rate-danger {
+    color: #e74c3c;
+}
+
+/* 반응형 조정 */
+@media (max-width: 1400px) {
+    .main-grid {
+        grid-template-columns: 250px 1fr;
+    }
+}
+
+@media (max-width: 1200px) {
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    .pass-rate-value {
+        font-size: 2rem;
+    }
+}

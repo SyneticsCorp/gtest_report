@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project_name }} Test Dashboard</title>
+</head>
+<body style="font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5;">
+    <div style="max-width: 1400px; margin: 0 auto;">
+        <!-- 헤더 -->
+        <div style="background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1 style="margin: 0; color: #333; font-size: 24px;">{{ project_name }} Test Dashboard</h1>
+                <div style="display: flex; gap: 20px; font-size: 14px;">
+                    {% if branch %}
+                    <div><strong>Branch:</strong> {{ branch }}</div>
+                    {% endif %}
+                    {% if build_number %}
+                    <div><strong>Build:</strong> #{{ build_number }}</div>
+                    {% endif %}
+                    {% if commit_id %}
+                    <div><strong>Commit:</strong> {{ commit_id[:8] if commit_id|length > 8 else commit_id }}</div>
+                    {% endif %}
+                    {% if report_date %}
+                    <div><strong>Generated:</strong> {{ report_date }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 메인 콘텐츠 -->
+        <div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px;">
+            <!-- 왼쪽: 전체 요약 -->
+            <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h2 style="margin: 0 0 20px 0; padding-bottom: 10px; border-bottom: 2px solid #e0e0e0; font-size: 18px;">Overall Summary</h2>
+                
+                <!-- Calculate totals -->
+                {% set ns = namespace(total_tests=0, total_passed=0, total_failed=0, total_skipped=0) %}
+                {% for row in index_rows %}
+                    {% set parts = row.split('</td>') %}
+                    {% if parts|length >= 7 %}
+                        {% set total_str = parts[1].replace('<td>', '').replace(',', '') %}
+                        {% set passed_str = parts[3].replace('<td>', '').replace(',', '') %}
+                        {% set failed_str = parts[4] %}
+                        {% set skip_no_str = parts[5].replace('<td>', '').replace(',', '') %}
+                        {% set skip_yes_str = parts[6].replace('<td>', '').replace(',', '') %}
+                        
+                        {% if 'NT' not in total_str %}
+                            {% set total = total_str|int %}
+                            {% set passed = passed_str|int %}
+                            
+                            {% if '<span' in failed_str %}
+                                {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
+                            {% else %}
+                                {% set failed = failed_str.replace('<td>', '').replace(',', '')|int %}
+                            {% endif %}
+                            
+                            {% set skip_no = skip_no_str|int %}
+                            {% set skip_yes = skip_yes_str|int %}
+                            
+                            {% set ns.total_tests = ns.total_tests + total %}
+                            {% set ns.total_passed = ns.total_passed + passed %}
+                            {% set ns.total_failed = ns.total_failed + failed %}
+                            {% set ns.total_skipped = ns.total_skipped + skip_no + skip_yes %}
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- 통계 박스들 -->
+                <div style="display: grid; gap: 12px; margin-bottom: 20px;">
+                    <div style="padding: 15px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 14px; opacity: 0.9;">Total Tests</span>
+                            <span style="font-size: 28px; font-weight: bold;">{{ "{:,}".format(ns.total_tests) }}</span>
+                        </div>
+                    </div>
+                    <div style="padding: 15px; background: #d4edda; border-radius: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 14px; color: #155724;">Passed</span>
+                            <span style="font-size: 28px; font-weight: bold; color: #155724;">{{ "{:,}".format(ns.total_passed) }}</span>
+                        </div>
+                    </div>
+                    <div style="padding: 15px; background: #f8d7da; border-radius: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 14px; color: #721c24;">Failed</span>
+                            <span style="font-size: 28px; font-weight: bold; color: #721c24;">{{ "{:,}".format(ns.total_failed) }}</span>
+                        </div>
+                    </div>
+                    <div style="padding: 15px; background: #fff3cd; border-radius: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 14px; color: #856404;">Skipped</span>
+                            <span style="font-size: 28px; font-weight: bold; color: #856404;">{{ "{:,}".format(ns.total_skipped) }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Pass Rate -->
+                <div style="padding: 20px; background: linear-gradient(135deg, #f5f7fa, #c3cfe2); border-radius: 6px; text-align: center;">
+                    <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Overall Pass Rate</div>
+                    <div style="font-size: 36px; font-weight: bold; color: {% if ns.total_tests > 0 and ns.total_passed / ns.total_tests > 0.9 %}#27ae60{% elif ns.total_tests > 0 and ns.total_passed / ns.total_tests > 0.7 %}#f39c12{% else %}#e74c3c{% endif %};">
+                        {% if ns.total_tests > 0 %}
+                            {{ "%.1f"|format((ns.total_passed / ns.total_tests * 100)) }}%
+                        {% else %}
+                            0%
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 오른쪽: 상세 테이블 -->
+            <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h2 style="margin: 0 0 20px 0; padding-bottom: 10px; border-bottom: 2px solid #e0e0e0; font-size: 18px;">Test Results by Stage</h2>
+                
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8f9fa;">
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6; font-size: 14px;">Test Stage</th>
+                            <th style="padding: 10px; text-align: center; border-bottom: 2px solid #dee2e6; font-size: 14px;">Total</th>
+                            <th style="padding: 10px; text-align: center; border-bottom: 2px solid #dee2e6; font-size: 14px;">Passed</th>
+                            <th style="padding: 10px; text-align: center; border-bottom: 2px solid #dee2e6; font-size: 14px;">Failed</th>
+                            <th style="padding: 10px; text-align: center; border-bottom: 2px solid #dee2e6; font-size: 14px;">Skipped</th>
+                            <th style="padding: 10px; text-align: center; border-bottom: 2px solid #dee2e6; font-size: 14px;">Pass Rate</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6; font-size: 14px;">Timestamp</th>
+                            <th style="padding: 10px; text-align: center; border-bottom: 2px solid #dee2e6; font-size: 14px;">Report</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in index_rows %}
+                            {% set parts = row.split('</td>') %}
+                            {% if parts|length >= 8 %}
+                                {% set name = parts[0].replace('<td>', '') %}
+                                {% set total_str = parts[1].replace('<td>', '').replace(',', '') %}
+                                
+                                {% if 'NT' not in total_str %}
+                                    {% set total = total_str|int %}
+                                    {% set executed = parts[2].replace('<td>', '').replace(',', '')|int %}
+                                    {% set passed = parts[3].replace('<td>', '').replace(',', '')|int %}
+                                    
+                                    {% set failed_str = parts[4] %}
+                                    {% if '<span' in failed_str %}
+                                        {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
+                                    {% else %}
+                                        {% set failed = failed_str.replace('<td>', '').replace(',', '')|int %}
+                                    {% endif %}
+                                    
+                                    {% set skip_no = parts[5].replace('<td>', '').replace(',', '')|int %}
+                                    {% set skip_yes = parts[6].replace('<td>', '').replace(',', '')|int %}
+                                    {% set timestamp = parts[7].replace('<td>', '') %}
+                                    {% set report_link = parts[8] %}
+                                    
+                                    {% set pass_rate = (passed / total * 100) if total > 0 else 0 %}
+                                    
+                                    <tr>
+                                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: 600;">{{ name }}</td>
+                                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;"><strong>{{ "{:,}".format(total) }}</strong></td>
+                                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">
+                                            <span style="padding: 2px 8px; background: #d4edda; color: #155724; border-radius: 4px; font-size: 13px;">{{ "{:,}".format(passed) }}</span>
+                                        </td>
+                                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">
+                                            <span style="padding: 2px 8px; background: #f8d7da; color: #721c24; border-radius: 4px; font-size: 13px;">{{ "{:,}".format(failed) }}</span>
+                                        </td>
+                                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">
+                                            <span style="padding: 2px 8px; background: #fff3cd; color: #856404; border-radius: 4px; font-size: 13px;">{{ "{:,}".format(skip_no + skip_yes) }}</span>
+                                        </td>
+                                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">
+                                            <span style="font-weight: bold; color: {% if pass_rate > 90 %}#27ae60{% elif pass_rate > 70 %}#f39c12{% else %}#e74c3c{% endif %};">
+                                                {{ "%.1f"|format(pass_rate) }}%
+                                            </span>
+                                        </td>
+                                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; color: #6c757d; font-size: 13px;">{{ timestamp }}</td>
+                                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">{{ report_link|safe }}</td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: 600;">{{ name }}</td>
+                                        <td colspan="7" style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center; color: #6c757d;">Not Tested</td>
+                                    </tr>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <!-- Static Analysis Summary -->
+                <h2 style="margin: 30px 0 20px 0; padding-bottom: 10px; border-bottom: 2px solid #e0e0e0; font-size: 18px;">Static Analysis Summary</h2>
+                
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8f9fa;">
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6; font-size: 14px;">Component</th>
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #dee2e6; font-size: 14px;">Violation Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="background: #f8f9fa; font-weight: bold;">
+                            <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">Total Violations</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: right;">
+                                <span style="color: {% if sa_total_violations and sa_total_violations != '0' %}#e74c3c{% else %}#27ae60{% endif %};">
+                                    {{ sa_total_violations if sa_total_violations else "0" }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% if sa_component_counts %}
+                            {% for comp, count in sa_component_counts.items() %}
+                            <tr>
+                                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">{{ comp }}</td>
+                                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: right;">{{ count }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+                
+                {% if sa_total_violations and sa_total_violations != "0" %}
+                <div style="margin-top: 20px; text-align: center;">
+                    <a href="SA_Report.html" style="display: inline-block; padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 14px;">View Detailed Static Analysis Report</a>
+                </div>
+                {% else %}
+                <div style="margin-top: 20px; text-align: center; color: #6c757d; font-size: 14px;">
+                    No static analysis violations found
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
