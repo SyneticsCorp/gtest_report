@@ -186,26 +186,11 @@ def main():
         autoescape=select_autoescape(["html"])
     )
     
-    # Generate main version (index.html)
-    tpl_main = env.get_template("index.html")
-    html_main = tpl_main.render(
-        project_name=project_name,
-        branch=branch,
-        release_tag=release_tag,
-        commit_id=commit_id,
-        build_number=build_number,
-        report_date=report_date,
-        index_rows=index_rows,
-        sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
-        sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
-    )
-    (output_root / "index.html").write_text(html_main, encoding="utf-8")
-    print(f"\nMain index generated at {output_root / 'index.html'}")
-    
-    # Try to generate compact version if template exists
+    # Generate improved version as main (index.html)
     try:
-        tpl_compact = env.get_template("index_compact.html")
-        html_compact = tpl_compact.render(
+        # Try to use improved template first
+        tpl_improved = env.get_template("index_compact.html")
+        html_improved = tpl_improved.render(
             project_name=project_name,
             branch=branch,
             release_tag=release_tag,
@@ -216,10 +201,40 @@ def main():
             sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
             sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
         )
-        (output_root / "index_compact.html").write_text(html_compact, encoding="utf-8")
-        print(f"Compact index generated at {output_root / 'index_compact.html'}")
-    except Exception as e:
-        print(f"Compact template not found, skipping: {e}")
+        (output_root / "index.html").write_text(html_improved, encoding="utf-8")
+        print(f"\nImproved index generated at {output_root / 'index.html'}")
+    except Exception:
+        # Fallback to original template if improved not found
+        tpl_main = env.get_template("index.html")
+        html_main = tpl_main.render(
+            project_name=project_name,
+            branch=branch,
+            release_tag=release_tag,
+            commit_id=commit_id,
+            build_number=build_number,
+            report_date=report_date,
+            index_rows=index_rows,
+            sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
+            sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
+        )
+        (output_root / "index.html").write_text(html_main, encoding="utf-8")
+        print(f"\nMain index generated at {output_root / 'index.html'}")
+    
+    # Always generate original version as index_original.html
+    tpl_original = env.get_template("index.html")
+    html_original = tpl_original.render(
+        project_name=project_name,
+        branch=branch,
+        release_tag=release_tag,
+        commit_id=commit_id,
+        build_number=build_number,
+        report_date=report_date,
+        index_rows=index_rows,
+        sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
+        sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
+    )
+    (output_root / "index_original.html").write_text(html_original, encoding="utf-8")
+    print(f"Original index generated at {output_root / 'index_original.html'}")
     
     print("All reports processed successfully.")
 
