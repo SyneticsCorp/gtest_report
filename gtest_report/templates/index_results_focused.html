@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project_name }} Test Results Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --info-color: #3498db;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        
+        .dashboard-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .header-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .header-title {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .build-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .info-item {
+            background: #f8f9fa;
+            padding: 12px 20px;
+            border-radius: 10px;
+            border-left: 4px solid var(--info-color);
+        }
+        
+        .info-label {
+            font-size: 0.85rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .info-value {
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-top: 5px;
+        }
+        
+        /* 총 테스트 요약 카드 */
+        .total-summary-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .total-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .total-stat-item {
+            text-align: center;
+            padding: 25px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        
+        .total-stat-value {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            line-height: 1;
+        }
+        
+        .total-stat-label {
+            font-size: 1rem;
+            color: #6c757d;
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .total-stat-item.success {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        }
+        
+        .total-stat-item.success .total-stat-value {
+            color: var(--success-color);
+        }
+        
+        .total-stat-item.danger {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        }
+        
+        .total-stat-item.danger .total-stat-value {
+            color: var(--danger-color);
+        }
+        
+        .total-stat-item.warning {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        }
+        
+        .total-stat-item.warning .total-stat-value {
+            color: var(--warning-color);
+        }
+        
+        /* 테스트 단계별 결과 */
+        .test-results-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .test-stage-grid {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .test-stage-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 2fr 1fr 3fr;
+            align-items: center;
+            gap: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .test-stage-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .stage-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .stage-total {
+            text-align: center;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .stage-total-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .stage-total-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            text-transform: uppercase;
+        }
+        
+        .stage-results {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .result-item {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .result-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .result-label {
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+        
+        .result-item.passed {
+            background: #d4edda;
+        }
+        
+        .result-item.passed .result-value {
+            color: var(--success-color);
+        }
+        
+        .result-item.failed {
+            background: #f8d7da;
+        }
+        
+        .result-item.failed .result-value {
+            color: var(--danger-color);
+        }
+        
+        .result-item.skipped {
+            background: #fff3cd;
+        }
+        
+        .result-item.skipped .result-value {
+            color: var(--warning-color);
+        }
+        
+        .view-report-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+        
+        .view-report-btn:hover {
+            transform: scale(1.05);
+            color: white;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+        
+        /* 차트 섹션 */
+        .charts-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+        
+        .chart-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .chart-box {
+            text-align: center;
+        }
+        
+        .chart-wrapper {
+            height: 250px;
+            position: relative;
+        }
+        
+        .footer {
+            text-align: center;
+            color: white;
+            padding: 20px;
+            margin-top: 40px;
+        }
+        
+        .timestamp {
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+        
+        .pass-rate-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .pass-rate-high {
+            background: var(--success-color);
+            color: white;
+        }
+        
+        .pass-rate-medium {
+            background: var(--warning-color);
+            color: white;
+        }
+        
+        .pass-rate-low {
+            background: var(--danger-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header Section -->
+        <div class="header-card">
+            <h1 class="header-title">
+                <i class="fas fa-chart-line"></i>
+                {{ project_name }} Test Results Dashboard
+            </h1>
+            
+            {% if branch or release_tag or commit_id or build_number or report_date %}
+            <div class="build-info">
+                {% if branch %}
+                <div class="info-item">
+                    <div class="info-label">Branch</div>
+                    <div class="info-value">{{ branch }}</div>
+                </div>
+                {% endif %}
+                {% if build_number %}
+                <div class="info-item">
+                    <div class="info-label">Build Number</div>
+                    <div class="info-value">#{{ build_number }}</div>
+                </div>
+                {% endif %}
+                {% if commit_id %}
+                <div class="info-item">
+                    <div class="info-label">Commit</div>
+                    <div class="info-value">{{ commit_id[:8] if commit_id|length > 8 else commit_id }}</div>
+                </div>
+                {% endif %}
+                {% if report_date %}
+                <div class="info-item">
+                    <div class="info-label">Generated</div>
+                    <div class="info-value">{{ report_date }}</div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- 전체 테스트 요약 -->
+        <div class="total-summary-card">
+            <h2 class="section-title">
+                <i class="fas fa-chart-pie"></i>
+                Overall Test Summary
+            </h2>
+            
+            <!-- Calculate totals from index_rows -->
+            {% set ns = namespace(total_tests=0, total_executed=0, total_passed=0, total_failed=0, total_skipped=0) %}
+            
+            {% for row in index_rows %}
+                {% set cells = row.split('</td>') %}
+                {% if cells|length > 7 and 'NT' not in cells[1] %}
+                    {% set total = cells[1].split('>')[1]|replace(',', '')|int %}
+                    {% set executed = cells[2].split('>')[1]|replace(',', '')|int %}
+                    {% set passed = cells[3].split('>')[1]|replace(',', '')|int %}
+                    {% set failed = cells[4].split('>')[1]|replace('</span', '')|replace(',', '')|int if 'span' in cells[4] else cells[4].split('>')[1]|replace(',', '')|int %}
+                    {% set skipped_no = cells[5].split('>')[1]|replace(',', '')|int %}
+                    {% set skipped_yes = cells[6].split('>')[1]|replace(',', '')|int %}
+                    
+                    {% set ns.total_tests = ns.total_tests + total %}
+                    {% set ns.total_executed = ns.total_executed + executed %}
+                    {% set ns.total_passed = ns.total_passed + passed %}
+                    {% set ns.total_failed = ns.total_failed + failed %}
+                    {% set ns.total_skipped = ns.total_skipped + skipped_no + skipped_yes %}
+                {% endif %}
+            {% endfor %}
+            
+            <div class="total-stats-grid">
+                <div class="total-stat-item">
+                    <div class="total-stat-value">{{ "{:,}".format(ns.total_tests) }}</div>
+                    <div class="total-stat-label">Total Tests</div>
+                </div>
+                <div class="total-stat-item success">
+                    <div class="total-stat-value">{{ "{:,}".format(ns.total_passed) }}</div>
+                    <div class="total-stat-label">Passed</div>
+                </div>
+                <div class="total-stat-item danger">
+                    <div class="total-stat-value">{{ "{:,}".format(ns.total_failed) }}</div>
+                    <div class="total-stat-label">Failed</div>
+                </div>
+                <div class="total-stat-item warning">
+                    <div class="total-stat-value">{{ "{:,}".format(ns.total_skipped) }}</div>
+                    <div class="total-stat-label">Skipped</div>
+                </div>
+            </div>
+            
+            {% if ns.total_tests > 0 %}
+            <div style="text-align: center; margin-top: 30px;">
+                <div style="font-size: 1.2rem; color: #6c757d;">Overall Pass Rate</div>
+                <div style="font-size: 3rem; font-weight: bold; color: {% if ns.total_passed / ns.total_tests > 0.9 %}var(--success-color){% elif ns.total_passed / ns.total_tests > 0.7 %}var(--warning-color){% else %}var(--danger-color){% endif %};">
+                    {{ "%.1f"|format((ns.total_passed / ns.total_tests * 100)) }}%
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- 테스트 단계별 결과 -->
+        <div class="test-results-card">
+            <h2 class="section-title">
+                <i class="fas fa-list-alt"></i>
+                Test Results by Stage
+            </h2>
+            
+            <div class="test-stage-grid">
+                {% for row in index_rows %}
+                    {% set cells = row.split('</td>') %}
+                    {% if cells|length > 8 %}
+                        {% set name = cells[0].split('>')[1] %}
+                        {% if 'NT' not in cells[1] %}
+                            {% set total = cells[1].split('>')[1]|replace(',', '') %}
+                            {% set executed = cells[2].split('>')[1]|replace(',', '') %}
+                            {% set passed = cells[3].split('>')[1]|replace(',', '') %}
+                            {% set failed_text = cells[4] %}
+                            {% if 'span' in failed_text %}
+                                {% set failed = failed_text.split('>')[2].split('<')[0]|replace(',', '') %}
+                            {% else %}
+                                {% set failed = failed_text.split('>')[1]|replace(',', '') %}
+                            {% endif %}
+                            {% set skipped_no = cells[5].split('>')[1]|replace(',', '') %}
+                            {% set skipped_yes = cells[6].split('>')[1]|replace(',', '') %}
+                            {% set timestamp = cells[7].split('>')[1] %}
+                            {% set report_link = cells[8] %}
+                            
+                            <div class="test-stage-item">
+                                <div>
+                                    <div class="stage-name">{{ name }}</div>
+                                    <div style="color: #6c757d; font-size: 0.9rem;">{{ timestamp }}</div>
+                                </div>
+                                
+                                <div class="stage-total">
+                                    <div class="stage-total-value">{{ total }}</div>
+                                    <div class="stage-total-label">Total Tests</div>
+                                </div>
+                                
+                                <div class="stage-results">
+                                    <div class="result-item passed">
+                                        <div class="result-value">{{ passed }}</div>
+                                        <div class="result-label">Passed</div>
+                                    </div>
+                                    <div class="result-item failed">
+                                        <div class="result-value">{{ failed }}</div>
+                                        <div class="result-label">Failed</div>
+                                    </div>
+                                    <div class="result-item skipped">
+                                        <div class="result-value">{{ skipped_no|int + skipped_yes|int }}</div>
+                                        <div class="result-label">Skipped</div>
+                                    </div>
+                                    {{ report_link|safe }}
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- 차트 섹션 -->
+        <div class="charts-card">
+            <h2 class="section-title">
+                <i class="fas fa-chart-bar"></i>
+                Visual Analytics
+            </h2>
+            
+            <div class="chart-container">
+                <div class="chart-box">
+                    <div class="chart-wrapper">
+                        <canvas id="overallChart"></canvas>
+                    </div>
+                    <div style="margin-top: 10px; color: #6c757d;">Test Distribution</div>
+                </div>
+                
+                <div class="chart-box">
+                    <div class="chart-wrapper">
+                        <canvas id="stageChart"></canvas>
+                    </div>
+                    <div style="margin-top: 10px; color: #6c757d;">Results by Stage</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Static Analysis Summary (if exists) -->
+        {% if sa_total_violations and sa_total_violations != "0" %}
+        <div class="test-results-card">
+            <h2 class="section-title">
+                <i class="fas fa-shield-alt"></i>
+                Static Analysis Summary
+            </h2>
+            
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 3rem; font-weight: bold; color: var(--danger-color);">
+                    {{ sa_total_violations }}
+                </div>
+                <div style="font-size: 1.2rem; color: #6c757d;">Total Violations</div>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: center;">
+                <a href="SA_Report.html" class="view-report-btn">
+                    <i class="fas fa-external-link-alt"></i> View Detailed Report
+                </a>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="timestamp">
+                <i class="fas fa-clock"></i> Report generated on {{ report_date if report_date else 'N/A' }}
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Overall Chart
+        const overallCtx = document.getElementById('overallChart');
+        if (overallCtx) {
+            new Chart(overallCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Passed', 'Failed', 'Skipped'],
+                    datasets: [{
+                        data: [{{ ns.total_passed }}, {{ ns.total_failed }}, {{ ns.total_skipped }}],
+                        backgroundColor: ['#27ae60', '#e74c3c', '#f39c12']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Stage Chart
+        const stageCtx = document.getElementById('stageChart');
+        if (stageCtx) {
+            const stageData = {
+                labels: [],
+                passed: [],
+                failed: [],
+                skipped: []
+            };
+            
+            {% for row in index_rows %}
+                {% set cells = row.split('</td>') %}
+                {% if cells|length > 6 and 'NT' not in cells[1] %}
+                    {% set name = cells[0].split('>')[1] %}
+                    {% set passed = cells[3].split('>')[1]|replace(',', '')|int %}
+                    {% set failed_text = cells[4] %}
+                    {% if 'span' in failed_text %}
+                        {% set failed = failed_text.split('>')[2].split('<')[0]|replace(',', '')|int %}
+                    {% else %}
+                        {% set failed = failed_text.split('>')[1]|replace(',', '')|int %}
+                    {% endif %}
+                    {% set skipped_no = cells[5].split('>')[1]|replace(',', '')|int %}
+                    {% set skipped_yes = cells[6].split('>')[1]|replace(',', '')|int %}
+                    
+                    stageData.labels.push('{{ name }}');
+                    stageData.passed.push({{ passed }});
+                    stageData.failed.push({{ failed }});
+                    stageData.skipped.push({{ skipped_no + skipped_yes }});
+                {% endif %}
+            {% endfor %}
+            
+            new Chart(stageCtx, {
+                type: 'bar',
+                data: {
+                    labels: stageData.labels,
+                    datasets: [
+                        {
+                            label: 'Passed',
+                            data: stageData.passed,
+                            backgroundColor: '#27ae60'
+                        },
+                        {
+                            label: 'Failed',
+                            data: stageData.failed,
+                            backgroundColor: '#e74c3c'
+                        },
+                        {
+                            label: 'Skipped',
+                            data: stageData.skipped,
+                            backgroundColor: '#f39c12'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true
+                        },
+                        y: {
+                            stacked: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+    });
+    </script>
+</body>
+</html>

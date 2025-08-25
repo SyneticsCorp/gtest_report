@@ -55,7 +55,7 @@ def render_report(project_name, report_name, xml_paths, output_path,
         loader=FileSystemLoader(str(tpl_dir)),
         autoescape=select_autoescape(["html"]),
     )
-    tpl = env.get_template("report_improved.html")
+    tpl = env.get_template("report.html")
 
     if sa_xml_path and sa_data:
         tpl_sa = env.get_template("sa_report.html")
