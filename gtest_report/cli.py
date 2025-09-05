@@ -100,6 +100,92 @@ def _worker_uit(task):
     except Exception as e:
         return (rtype, False, str(e))
 
+def generate_module_original_reports(project_name, input_root, output_root, branch=None, tag=None, commit=None, build=None):
+    """Generate module-specific original reports (para-exec, para-diag, para-com)"""
+    report_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    modules = ["exec", "diag", "com"]
+    
+    tpl_dir = Path(__file__).parent / "templates"
+    env = Environment(
+        loader=FileSystemLoader(str(tpl_dir)),
+        autoescape=select_autoescape(["html"])
+    )
+    tpl_original = env.get_template("index.html")
+    
+    for module in modules:
+        print(f"\nGenerating {module.upper()} module original report...")
+        
+        # Filter XML files for this module
+        module_xmls = {}
+        total_files = 0
+        for rtype in REPORT_TYPES:
+            type_dir = input_root / rtype
+            if type_dir.exists():
+                # Match files containing the module name (para_exec, para_diag, para_com)
+                pattern = f"para_{module}*"
+                xmls = list(type_dir.glob(pattern))
+                module_xmls[rtype] = xmls
+                total_files += len(xmls)
+                print(f"  {rtype}: {len(xmls)} files for {module}")
+        
+        if total_files == 0:
+            print(f"  No XML files found for {module} module, skipping...")
+            continue
+            
+        # Generate individual reports for each test type in this module
+        module_output_dir = output_root / f"{module}_reports"
+        module_output_dir.mkdir(exist_ok=True)
+        
+        tasks = []
+        for rtype in REPORT_TYPES:
+            xmls = module_xmls.get(rtype, [])
+            if xmls:
+                if rtype == "UIT":
+                    worker_func = _worker_uit
+                else:
+                    worker_func = _worker
+                tasks.append((rtype, project_name, DISPLAY_NAMES[rtype], xmls, module_output_dir))
+        
+        # Execute report generation tasks for this module
+        with ProcessPoolExecutor() as executor:
+            future_map = {executor.submit(_worker if t[0] != "UIT" else _worker_uit, t): t[0] for t in tasks}
+            for future in as_completed(future_map):
+                rtype, success, err = future.result()
+                if success:
+                    print(f"    → {rtype}_Report.html generated for {module}")
+                else:
+                    print(f"    [ERROR] {rtype}: {err}", file=sys.stderr)
+        
+        # Generate index rows for this module
+        index_rows = []
+        for rtype in REPORT_TYPES:
+            xmls = module_xmls.get(rtype, [])
+            if rtype == "UIT":
+                # For UIT, use UT files if available
+                ut_xmls = module_xmls.get("UT", [])
+                row = build_index_cells_for_uit(rtype, ut_xmls)
+            else:
+                row = build_index_cells(rtype, xmls)
+            index_rows.append(row)
+        
+        # Generate module-specific original index
+        html_content = tpl_original.render(
+            project_name=f"{project_name} - {module.upper()} Module",
+            branch=branch,
+            release_tag=tag,
+            commit_id=commit,
+            build_number=build,
+            report_date=report_date,
+            index_rows=index_rows,
+            sa_total_violations="0",  # No SA for module reports
+            sa_component_counts={},
+        )
+        
+        # Save module-specific original index
+        module_index_path = output_root / f"index_original_{module}.html"
+        module_index_path.write_text(html_content, encoding="utf-8")
+        print(f"    → Original index generated: index_original_{module}.html")
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate GTest HTML reports and index with Jenkins build info"
@@ -237,7 +323,7 @@ def main():
             (output_root / "index.html").write_text(html_main, encoding="utf-8")
             print(f"\nMain index generated at {output_root / 'index.html'}")
     
-    # Always generate original version as index_original.html
+    # Always generate original version as index_original.html (integrated view)
     tpl_original = env.get_template("index.html")
     html_original = tpl_original.render(
         project_name=project_name,
@@ -251,7 +337,19 @@ def main():
         sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
     )
     (output_root / "index_original.html").write_text(html_original, encoding="utf-8")
-    print(f"Original index generated at {output_root / 'index_original.html'}")
+    print(f"Original index (integrated) generated at {output_root / 'index_original.html'}")
+    
+    # Generate module-specific original reports
+    print("\nGenerating module-specific original reports...")
+    generate_module_original_reports(
+        project_name=project_name,
+        input_root=input_root,
+        output_root=output_root,
+        branch=branch,
+        tag=release_tag,
+        commit=commit_id,
+        build=build_number
+    )
     
     # Also generate compact version with external CSS for environments without CSP
     try:
