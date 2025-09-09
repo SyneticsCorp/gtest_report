@@ -238,11 +238,19 @@ def main():
             else:
                 print(f"[ERROR] {rtype}: {err}", file=sys.stderr)
 
-    index_rows = [
-        build_index_cells_for_uit(rtype, list((input_root / "UT").glob("*.xml"))) if rtype == "UIT" else build_index_cells(rtype, list((input_root / rtype).glob("*.xml")))
-
-        for rtype in REPORT_TYPES
-    ]
+    # Generate index rows with module breakdown
+    index_rows = []
+    for rtype in REPORT_TYPES:
+        if rtype == "UIT":
+            # UIT uses UT XML files but with different display logic
+            ut_xmls = list((input_root / "UT").glob("*.xml"))
+            row = build_index_cells_for_uit(rtype, ut_xmls)
+            index_rows.append(row)
+        else:
+            # Get all module rows for this test type
+            xmls = list((input_root / rtype).glob("*.xml"))
+            module_rows = build_index_cells_with_modules(rtype, xmls)
+            index_rows.extend(module_rows)
 
     # SA 보고서 처리
     sa_report_path = input_root / "SA" / "report.xml"
@@ -372,42 +380,87 @@ def main():
     
     print("All reports processed successfully.")
 
-def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
+def build_index_cells_with_modules(report_type: str, xml_paths: list[Path]) -> list[str]:
+    """Build index cells with module breakdown (returns multiple rows)"""
     name = DISPLAY_NAMES[report_type]
-    if xml_paths:
-        results, total, failures, skipped, timestamps = parse_files(xml_paths)
-        executed = total - skipped
-        successes = executed - failures
-
-        skipped_with_reason = 0
-        skipped_no_reason = 0
-        for fr in results:
-            for case in fr.cases:
-                if case.status == "skipped":
-                    if getattr(case, "failure_message", "").strip():
-                        skipped_with_reason += 1
-                    else:
-                        skipped_no_reason += 1
-
-        ts_str = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""
-        link = f'<a href="{report_type}_Report.html">View Report</a>'
-        fail_html = f'<span style="color:red;">{failures:,}</span>' if failures else "0"
-
-        cells = [
-            name,
-            f"{total:,}",
-            f"{executed:,}",
-            f"{successes:,}",
-            fail_html,
-            f"{skipped_no_reason:,}",
-            f"{skipped_with_reason:,}",
-            ts_str,
-            link,
-        ]
-    else:
+    modules = ["exec", "diag", "com"]
+    rows = []
+    
+    if not xml_paths:
+        # No XML files found
         cells = [name] + ["NT"] * 8
+        return ["".join(f"<td>{c}</td>" for c in cells)]
+    
+    # Group XML files by module
+    module_xmls = {}
+    for module in modules:
+        module_files = [xml for xml in xml_paths if f"para_{module}" in xml.name]
+        if module_files:
+            module_xmls[module] = module_files
+    
+    # If no module-specific files found, treat as one group
+    if not module_xmls:
+        module_xmls["unknown"] = xml_paths
+    
+    row_count = 0
+    for module, files in module_xmls.items():
+        try:
+            results, total, failures, skipped, timestamps = parse_files(files)
+            executed = total - skipped
+            successes = executed - failures
 
-    return "".join(f"<td>{c}</td>" for c in cells)
+            skipped_with_reason = 0
+            skipped_no_reason = 0
+            for fr in results:
+                for case in fr.cases:
+                    if case.status == "skipped":
+                        if getattr(case, "failure_message", "").strip():
+                            skipped_with_reason += 1
+                        else:
+                            skipped_no_reason += 1
+
+            ts_str = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""
+            fail_html = f'<span style="color:red;">{failures:,}</span>' if failures else "0"
+            
+            # First row shows test type name, subsequent rows are empty
+            type_name = name if row_count == 0 else ""
+            module_name = module.upper() if module != "unknown" else "ALL"
+            
+            # Only show "View Report" link on the last row of each test type
+            is_last_row = (list(module_xmls.keys()).index(module) == len(module_xmls) - 1)
+            link = f'<a href="{report_type}_Report.html">View Report</a>' if is_last_row else ""
+            
+            cells = [
+                type_name,
+                module_name,
+                f"{total:,}",
+                f"{executed:,}",
+                f"{successes:,}",
+                fail_html,
+                f"{skipped_no_reason:,}",
+                f"{skipped_with_reason:,}",
+                ts_str,
+                link,
+            ]
+            
+            rows.append("".join(f"<td>{c}</td>" for c in cells))
+            row_count += 1
+            
+        except Exception as e:
+            print(f"Error processing {module} module for {report_type}: {e}")
+            # Add error row
+            type_name = name if row_count == 0 else ""
+            module_name = module.upper()
+            error_cells = [type_name, module_name] + ["ERROR"] * 8
+            rows.append("".join(f"<td>{c}</td>" for c in error_cells))
+            row_count += 1
+    
+    return rows
+
+def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
+    """Legacy function - returns first row only for backward compatibility"""
+    rows = build_index_cells_with_modules(report_type, xml_paths)
+    return rows[0] if rows else ""
 
 if __name__ == "__main__":
     main()
