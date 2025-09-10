@@ -403,6 +403,20 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path], incl
         # Fall back to original single row display
         return [build_index_cells(report_type, xml_paths)]
     
+    # Add test type header row first
+    header_cells = [
+        f"<b>{name}</b>",  # Test type name in bold
+        "",  # Empty for other columns
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+    ]
+    rows.append("".join(f"<td>{c}</td>" for c in header_cells))
+    
     row_count = 0
     total_all = 0
     executed_all = 0
@@ -446,11 +460,8 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path], incl
             ts_str = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""
             fail_html = f'<span style="color:red;">{failures:,}</span>' if failures else "0"
             
-            # First row shows test type name + module, subsequent rows show empty + module
-            if row_count == 0:
-                display_name = f"{name} - {module.upper()}"
-            else:
-                display_name = f"&nbsp;&nbsp;&nbsp;&nbsp;{module.upper()}"  # Indent for clarity
+            # Module rows are indented
+            display_name = f"&nbsp;&nbsp;&nbsp;&nbsp;{module.upper()}"
             
             cells = [
                 display_name,
