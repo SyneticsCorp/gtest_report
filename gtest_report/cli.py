@@ -386,22 +386,22 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path], incl
     rows = []
     
     if not xml_paths:
-        # No XML files found
-        cells = [name, "", "NT", "NT", "NT", "NT", "NT", "NT", "", ""]
+        # No XML files found - maintain original 9 column structure
+        cells = [name, "NT", "NT", "NT", "NT", "NT", "NT", "", ""]
         return ["".join(f"<td>{c}</td>" for c in cells)]
     
     # Group XML files by module
     module_xmls = {}
-    module_stats = {}  # Store stats for total calculation
     
     for module in modules:
         module_files = [xml for xml in xml_paths if f"para_{module}" in xml.name]
         if module_files:
             module_xmls[module] = module_files
     
-    # If no module-specific files found, treat as one group
+    # If no module-specific files found, show as single row
     if not module_xmls:
-        module_xmls["unknown"] = xml_paths
+        # Fall back to original single row display
+        return [build_index_cells(report_type, xml_paths)]
     
     row_count = 0
     total_all = 0
@@ -446,13 +446,14 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path], incl
             ts_str = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""
             fail_html = f'<span style="color:red;">{failures:,}</span>' if failures else "0"
             
-            # First row shows test type name, subsequent rows are empty
-            type_name = name if row_count == 0 else ""
-            module_name = module.upper()
+            # First row shows test type name + module, subsequent rows show empty + module
+            if row_count == 0:
+                display_name = f"{name} - {module.upper()}"
+            else:
+                display_name = f"&nbsp;&nbsp;&nbsp;&nbsp;{module.upper()}"  # Indent for clarity
             
             cells = [
-                type_name,
-                module_name,
+                display_name,
                 f"{total:,}",
                 f"{executed:,}",
                 f"{successes:,}",
@@ -475,8 +476,7 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path], incl
         fail_html_total = f'<span style="color:red;font-weight:bold">{failures_all:,}</span>' if failures_all else "<b>0</b>"
         
         total_cells = [
-            "",  # Empty for test type column
-            "<b>TOTAL</b>",  # Bold TOTAL
+            f"&nbsp;&nbsp;&nbsp;&nbsp;<b>TOTAL</b>",  # Indented TOTAL
             f"<b>{total_all:,}</b>",
             f"<b>{executed_all:,}</b>",
             f"<b>{successes_all:,}</b>",
@@ -489,7 +489,7 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path], incl
         
         rows.append("".join(f"<td>{c}</td>" for c in total_cells))
     
-    return rows if rows else [f"<td>{name}</td>" + "<td>No data</td>" * 9]
+    return rows if rows else ["<td>" + name + "</td>" + "<td>No data</td>" * 8]
 
 def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
     """Legacy function - returns first row only for backward compatibility"""
