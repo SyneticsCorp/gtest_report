@@ -241,16 +241,15 @@ def main():
     # Generate index rows with module breakdown
     index_rows = []
     for rtype in REPORT_TYPES:
+        # Get all module rows for this test type
         if rtype == "UIT":
-            # UIT uses UT XML files but with different display logic
-            ut_xmls = list((input_root / "UT").glob("*.xml"))
-            row = build_index_cells_for_uit(rtype, ut_xmls)
-            index_rows.append(row)
+            # UIT uses UT XML files
+            xmls = list((input_root / "UT").glob("*.xml"))
         else:
-            # Get all module rows for this test type
             xmls = list((input_root / rtype).glob("*.xml"))
-            module_rows = build_index_cells_with_modules(rtype, xmls)
-            index_rows.extend(module_rows)
+        
+        module_rows = build_index_cells_with_modules(rtype, xmls, include_total=True)
+        index_rows.extend(module_rows)
 
     # SA 보고서 처리
     sa_report_path = input_root / "SA" / "report.xml"
@@ -380,7 +379,7 @@ def main():
     
     print("All reports processed successfully.")
 
-def build_index_cells_with_modules(report_type: str, xml_paths: list[Path]) -> list[str]:
+def build_index_cells_with_modules(report_type: str, xml_paths: list[Path], include_total: bool = False) -> list[str]:
     """Build index cells with module breakdown (returns multiple rows)"""
     name = DISPLAY_NAMES[report_type]
     modules = ["exec", "diag", "com"]
@@ -388,11 +387,13 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path]) -> l
     
     if not xml_paths:
         # No XML files found
-        cells = [name] + ["NT"] * 8
+        cells = [name, "", "NT", "NT", "NT", "NT", "NT", "NT", "", ""]
         return ["".join(f"<td>{c}</td>" for c in cells)]
     
     # Group XML files by module
     module_xmls = {}
+    module_stats = {}  # Store stats for total calculation
+    
     for module in modules:
         module_files = [xml for xml in xml_paths if f"para_{module}" in xml.name]
         if module_files:
@@ -403,7 +404,20 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path]) -> l
         module_xmls["unknown"] = xml_paths
     
     row_count = 0
-    for module, files in module_xmls.items():
+    total_all = 0
+    executed_all = 0
+    successes_all = 0
+    failures_all = 0
+    skipped_no_reason_all = 0
+    skipped_with_reason_all = 0
+    all_timestamps = []
+    
+    # Process each module
+    for module in modules:  # Keep order: exec, diag, com
+        if module not in module_xmls:
+            continue
+            
+        files = module_xmls[module]
         try:
             results, total, failures, skipped, timestamps = parse_files(files)
             executed = total - skipped
@@ -419,16 +433,22 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path]) -> l
                         else:
                             skipped_no_reason += 1
 
+            # Accumulate totals
+            total_all += total
+            executed_all += executed
+            successes_all += successes
+            failures_all += failures
+            skipped_no_reason_all += skipped_no_reason
+            skipped_with_reason_all += skipped_with_reason
+            if timestamps:
+                all_timestamps.extend(timestamps)
+
             ts_str = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""
             fail_html = f'<span style="color:red;">{failures:,}</span>' if failures else "0"
             
             # First row shows test type name, subsequent rows are empty
             type_name = name if row_count == 0 else ""
-            module_name = module.upper() if module != "unknown" else "ALL"
-            
-            # Only show "View Report" link on the last row of each test type
-            is_last_row = (list(module_xmls.keys()).index(module) == len(module_xmls) - 1)
-            link = f'<a href="{report_type}_Report.html">View Report</a>' if is_last_row else ""
+            module_name = module.upper()
             
             cells = [
                 type_name,
@@ -440,7 +460,7 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path]) -> l
                 f"{skipped_no_reason:,}",
                 f"{skipped_with_reason:,}",
                 ts_str,
-                link,
+                "",  # No link for individual module rows
             ]
             
             rows.append("".join(f"<td>{c}</td>" for c in cells))
@@ -448,14 +468,28 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path]) -> l
             
         except Exception as e:
             print(f"Error processing {module} module for {report_type}: {e}")
-            # Add error row
-            type_name = name if row_count == 0 else ""
-            module_name = module.upper()
-            error_cells = [type_name, module_name] + ["ERROR"] * 8
-            rows.append("".join(f"<td>{c}</td>" for c in error_cells))
-            row_count += 1
     
-    return rows
+    # Add TOTAL row if requested and we have multiple modules
+    if include_total and row_count > 0:
+        ts_str_total = min(all_timestamps).strftime("%Y-%m-%d %H:%M:%S") if all_timestamps else ""
+        fail_html_total = f'<span style="color:red;font-weight:bold">{failures_all:,}</span>' if failures_all else "<b>0</b>"
+        
+        total_cells = [
+            "",  # Empty for test type column
+            "<b>TOTAL</b>",  # Bold TOTAL
+            f"<b>{total_all:,}</b>",
+            f"<b>{executed_all:,}</b>",
+            f"<b>{successes_all:,}</b>",
+            fail_html_total,
+            f"<b>{skipped_no_reason_all:,}</b>",
+            f"<b>{skipped_with_reason_all:,}</b>",
+            ts_str_total,
+            f'<a href="{report_type}_Report.html">View Report</a>',  # Link on total row
+        ]
+        
+        rows.append("".join(f"<td>{c}</td>" for c in total_cells))
+    
+    return rows if rows else [f"<td>{name}</td>" + "<td>No data</td>" * 9]
 
 def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
     """Legacy function - returns first row only for backward compatibility"""
