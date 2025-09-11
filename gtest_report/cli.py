@@ -100,6 +100,57 @@ def _worker_uit(task):
     except Exception as e:
         return (rtype, False, str(e))
 
+def collect_module_test_data(input_root):
+    """Collect test data for each module (exec, diag, com)"""
+    from .parser import parse_files
+    
+    modules = ["exec", "diag", "com"]
+    module_data = []
+    
+    for module in modules:
+        module_stats = {
+            'name': f"para-{module}",
+            'total': 0,
+            'executed': 0,
+            'passed': 0,
+            'failed': 0,
+            'skipped_no_reason': 0,
+            'skipped_with_reason': 0
+        }
+        
+        # Collect data from all test types for this module
+        for rtype in REPORT_TYPES:
+            type_dir = input_root / rtype
+            if type_dir.exists():
+                # Match files containing the module name
+                pattern = f"para_{module}*"
+                xmls = list(type_dir.glob(pattern))
+                
+                if xmls:
+                    results, total, failures, skipped, _ = parse_files(xmls)
+                    
+                    # Count skipped with/without reason
+                    skipped_with_reason = 0
+                    skipped_no_reason = 0
+                    for fr in results:
+                        for case in fr.cases:
+                            if case.status == "skipped":
+                                if getattr(case, "failure_message", "").strip():
+                                    skipped_with_reason += 1
+                                else:
+                                    skipped_no_reason += 1
+                    
+                    module_stats['total'] += total
+                    module_stats['failed'] += failures
+                    module_stats['skipped_no_reason'] += skipped_no_reason
+                    module_stats['skipped_with_reason'] += skipped_with_reason
+                    module_stats['executed'] += (total - skipped_no_reason - skipped_with_reason)
+                    module_stats['passed'] += (total - failures - skipped_no_reason - skipped_with_reason)
+        
+        module_data.append(module_stats)
+    
+    return module_data
+
 def generate_module_original_reports(project_name, input_root, output_root, branch=None, tag=None, commit=None, build=None):
     """Generate module-specific original reports (para-exec, para-diag, para-com)"""
     report_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -331,6 +382,38 @@ def main():
             print(f"\nMain index generated at {output_root / 'index.html'}")
     
     # Always generate original version as index_original.html (integrated view)
+    # Collect module test data
+    module_data = collect_module_test_data(input_root)
+    module_rows = []
+    
+    for mod in module_data:
+        pass_rate = 0
+        if mod['total'] > 0:
+            pass_rate = (mod['passed'] / mod['total']) * 100
+        
+        # Format failed count with red color if > 0
+        fail_html = f"<span style='color:red;'>{mod['failed']:,}</span>" if mod['failed'] > 0 else f"{mod['failed']:,}"
+        
+        # Format pass rate with color coding
+        if pass_rate >= 90:
+            pass_rate_html = f"<span style='color:green;'>{pass_rate:.1f}%</span>"
+        elif pass_rate >= 70:
+            pass_rate_html = f"<span style='color:orange;'>{pass_rate:.1f}%</span>"
+        else:
+            pass_rate_html = f"<span style='color:red;'>{pass_rate:.1f}%</span>"
+        
+        row = [
+            f"<td><strong>{mod['name']}</strong></td>",
+            f"<td>{mod['total']:,}</td>",
+            f"<td>{mod['executed']:,}</td>",
+            f"<td>{mod['passed']:,}</td>",
+            f"<td>{fail_html}</td>",
+            f"<td>{mod['skipped_no_reason']:,}</td>",
+            f"<td>{mod['skipped_with_reason']:,}</td>",
+            f"<td>{pass_rate_html}</td>"
+        ]
+        module_rows.append("".join(row))
+    
     tpl_original = env.get_template("index.html")
     html_original = tpl_original.render(
         project_name=project_name,
@@ -340,6 +423,7 @@ def main():
         build_number=build_number,
         report_date=report_date,
         index_rows=index_rows,
+        module_rows=module_rows,  # Add module rows
         sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
         sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
     )

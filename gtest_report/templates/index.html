@@ -63,6 +63,37 @@
     {% endfor %}
   </table>
 
+  <h3>Module Test Summary</h3>
+  <table class="index_summary">
+    <colgroup>
+      <col style="width:20%">
+      <col style="width:10%">
+      <col style="width:10%">
+      <col style="width:10%">
+      <col style="width:10%">
+      <col style="width:15%">
+      <col style="width:15%">
+      <col style="width:10%">
+    </colgroup>
+    <tr>
+      <th>Module</th>
+      <th>Total Tests</th>
+      <th>Executed Tests</th>
+      <th>Passed</th>
+      <th>Failed</th>
+      <th>Skipped (No Reason)</th>
+      <th>Skipped (With Reason)</th>
+      <th>Pass Rate</th>
+    </tr>
+    {% if module_rows %}
+      {% for row in module_rows %}
+        <tr>{{ row|safe }}</tr>
+      {% endfor %}
+    {% else %}
+      <tr><td colspan="8" style="text-align: center;">No module test data available</td></tr>
+    {% endif %}
+  </table>
+
   <h3>Static Analysis Summary</h3>
   <table class="index_summary">
     <colgroup>
