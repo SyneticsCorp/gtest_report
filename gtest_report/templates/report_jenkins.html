@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title }}</title>
+  <style>
+    /* Jenkins CSP Compatible - Simple Table Layout with Grid */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 10px;
+      background: white;
+    }
+    
+    h1 {
+      color: #333;
+      border-bottom: 2px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    
+    h2 {
+      color: #444;
+      margin-top: 30px;
+      background: #f5f5f5;
+      padding: 8px;
+      border-left: 4px solid #4CAF50;
+    }
+    
+    table {
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    
+    th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    
+    tr:hover {
+      background-color: #f5f5f5;
+    }
+    
+    /* Table Layout for Summary - Jenkins CSP compatible */
+    .summary-grid {
+      display: table;
+      width: 100%;
+      margin: 20px 0;
+      border-spacing: 20px;
+    }
+    
+    .summary-box {
+      display: table-cell;
+      border: 1px solid #ddd;
+      padding: 15px;
+      background: #fafafa;
+      width: 33.33%;
+      vertical-align: top;
+    }
+    
+    .summary-box h3 {
+      margin-top: 0;
+      color: #333;
+      font-size: 16px;
+    }
+    
+    .summary-box table {
+      width: 100%;
+      margin: 0;
+    }
+    
+    /* Two Column Layout for Test Results - Jenkins CSP compatible */
+    .test-grid {
+      display: table;
+      width: 100%;
+      margin: 20px 0;
+      border-spacing: 20px;
+    }
+    
+    .test-section {
+      display: table-cell;
+      border: 1px solid #ddd;
+      padding: 10px;
+      width: 50%;
+      vertical-align: top;
+    }
+    
+    .test-section h3 {
+      margin-top: 0;
+      background: #4CAF50;
+      color: white;
+      padding: 8px;
+      margin: -10px -10px 10px -10px;
+    }
+    
+    .test-section table {
+      width: 100%;
+    }
+    
+    /* Status Highlights */
+    .failed { color: red; font-weight: bold; }
+    .passed { color: green; }
+    .skipped { color: orange; }
+    
+    /* Compact metrics display */
+    .metrics-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .metrics-row:last-child {
+      border-bottom: none;
+    }
+    
+    .metric-label {
+      font-weight: normal;
+      color: #666;
+    }
+    
+    .metric-value {
+      font-weight: bold;
+      color: #333;
+    }
+    
+    /* Skip reason display */
+    .skip-reason {
+      font-size: 0.9em;
+      color: #666;
+      font-style: italic;
+      padding-left: 20px;
+    }
+    
+    /* File details in columns */
+    .file-details {
+      column-count: 2;
+      column-gap: 30px;
+    }
+    
+    @media (max-width: 768px) {
+      .file-details {
+        column-count: 1;
+      }
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    /* Test details table */
+    .test-details-table {
+      width: 100%;
+      font-size: 0.95em;
+    }
+    
+    .test-details-table td {
+      padding: 6px;
+    }
+    
+    /* Overflow handling */
+    .scrollable {
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      padding: 5px;
+    }
+  </style>
+</head>
+<body>
+  <table width="100%" bgcolor="#4CAF50" cellpadding="15" style="margin-bottom: 20px;">
+    <tr>
+      <td>
+        <h1 style="color: white; margin: 0; font-size: 24px;">🧪 {{ title }}</h1>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Summary Cards with better styling -->
+  <table width="100%" cellspacing="15" style="margin-bottom: 30px;">
+    <tr>
+      <td width="50%" valign="top">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border: 2px solid #e0e0e0; overflow: hidden;">
+          <tr>
+            <td bgcolor="#f5f5f5" style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
+              <b style="font-size: 16px; color: #333;">📊 Test Summary</b>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="white" style="padding: 15px;">
+              <table width="100%" cellpadding="8">
+                {% for row in overall_rows %}
+                  <tr style="border-bottom: 1px solid #f0f0f0;">{{ row|safe }}</tr>
+                {% endfor %}
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+      <td width="50%" valign="top">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border: 2px solid #e0e0e0; overflow: hidden;">
+          <tr>
+            <td bgcolor="#f5f5f5" style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
+              <b style="font-size: 16px; color: #333;">📁 Test File Summary</b>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="white" style="padding: 15px;">
+              {% if file_rows %}
+                <table width="100%" cellpadding="5" cellspacing="0" style="font-size: 14px;">
+                  <thead>
+                    {% for row in file_rows[:1] %}
+                      <tr bgcolor="#fafafa">{{ row|safe }}</tr>
+                    {% endfor %}
+                  </thead>
+                  <tbody>
+                    {% for row in file_rows[1:] %}
+                      <tr style="border-top: 1px solid #f0f0f0;">{{ row|safe }}</tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% endif %}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+
+  <!-- Failed Tests Section -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px;">
+    <tr>
+      <td bgcolor="#dc3545" style="padding: 10px 15px;">
+        <b style="color: white; font-size: 18px;">❌ Failed Tests ({{ failed_tests if failed_tests is defined else 0 }})</b>
+      </td>
+    </tr>
+  </table>
+  {% if file_results %}
+    {% for fr in file_results if fr.failures > 0 %}
+      <table width="100%" cellpadding="8" cellspacing="0" style="margin-bottom: 20px; border: 1px solid #ddd;">
+        <thead>
+          <tr bgcolor="#f8f9fa" style="border-bottom: 2px solid #dee2e6;">
+            <th align="left" width="20%" style="padding: 10px;">Test Suite</th>
+            <th align="left" width="30%" style="padding: 10px;">Test Case</th>
+            <th align="left" width="50%" style="padding: 10px;">Failure Message</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for case in fr.cases if case.status == "failed" %}
+            {% set suite, case_name = case.name.split(".", 1) %}
+            <tr style="border-bottom: 1px solid #f0f0f0;">
+              <td style="padding: 8px; background: white;">{{ suite }}</td>
+              <td style="padding: 8px; background: white;">{{ case_name }}</td>
+              <td style="padding: 8px; background: #fff5f5; color: #d32f2f; font-family: 'Courier New', monospace; font-size: 12px; word-wrap: break-word;">{{ case.failure_message if case.failure_message else "No error message available" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endfor %}
+  {% else %}
+    <p style="color: green; text-align: center;">No failed tests</p>
+  {% endif %}
+
+  <!-- Skipped Tests Section -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px; margin-bottom: 20px;">
+    <tr>
+      <td bgcolor="#ffc107" style="padding: 10px 15px;">
+        <b style="color: #333; font-size: 18px;">⏭️ Skipped Tests ({{ skipped_tests if skipped_tests is defined else 0 }})</b>
+      </td>
+    </tr>
+  </table>
+  <div style="max-height: 300px; overflow-y: scroll; border: 2px solid #ffc107; padding: 0;">
+    <table width="100%" cellpadding="6" cellspacing="0">
+      <thead>
+        <tr bgcolor="#fff3cd">
+          <th align="left" style="padding: 10px; border-bottom: 2px solid #ffc107;">Suite</th>
+          <th align="left" style="padding: 10px; border-bottom: 2px solid #ffc107;">Test Case</th>
+          <th align="left" style="padding: 10px; border-bottom: 2px solid #ffc107;">Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if file_results %}
+          {% for fr in file_results %}
+            {% for case in fr.cases if case.status == "skipped" %}
+              {% set suite, case_name = case.name.split(".", 1) %}
+              <tr style="border-bottom: 1px solid #f0f0f0;">
+                <td style="padding: 6px; background: white;">{{ suite }}</td>
+                <td style="padding: 6px; background: white;">{{ case_name }}</td>
+                <td style="padding: 6px; background: #fffbf0; color: #856404; font-style: italic;">{{ case.failure_message if case.failure_message else "No reason specified" }}</td>
+              </tr>
+            {% endfor %}
+          {% endfor %}
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+
+
+  <!-- Remaining Summary Info -->
+  <h2>Additional Information</h2>
+  <table style="width: 50%;">
+    {% for row in overall_rows[4:] %}
+      <tr>{{ row|safe }}</tr>
+    {% endfor %}
+  </table>
+
+</body>
+</html>

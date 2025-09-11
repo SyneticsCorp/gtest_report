@@ -218,7 +218,7 @@ def main():
     tasks = []
     for rtype in REPORT_TYPES:
         if rtype == "UIT":
-            xmls = list((input_root / "UT").glob("*.xml"))
+            xmls = list((input_root / "UIT").glob("*.xml"))  # UIT uses UIT directory
             cells_func = build_index_cells_for_uit
             worker_func = _worker_uit
         else:
@@ -243,8 +243,8 @@ def main():
     for rtype in REPORT_TYPES:
         # Get all module rows for this test type
         if rtype == "UIT":
-            # UIT uses UT XML files
-            xmls = list((input_root / "UT").glob("*.xml"))
+            # UIT uses UIT XML files
+            xmls = list((input_root / "UIT").glob("*.xml"))
         else:
             xmls = list((input_root / rtype).glob("*.xml"))
         

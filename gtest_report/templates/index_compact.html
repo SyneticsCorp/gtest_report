@@ -58,21 +58,22 @@
                     {% set cells = row.replace('<td>', '').replace('</td>', '').split('</td>') %}
                     {% set parts = row.split('</td>') %}
                     
-                    {% if parts|length >= 7 %}
-                        {% set total_str = parts[1].replace('<td>', '').replace(',', '') %}
-                        {% set passed_str = parts[3].replace('<td>', '').replace(',', '') %}
+                    {# Only process TOTAL rows that have <b> tags and View Report link #}
+                    {% if parts|length >= 8 and '<b>TOTAL</b>' in parts[0] and 'View Report' in row %}
+                        {% set total_str = parts[1].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
+                        {% set passed_str = parts[3].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
                         {% set failed_str = parts[4] %}
-                        {% set skip_no_str = parts[5].replace('<td>', '').replace(',', '') %}
-                        {% set skip_yes_str = parts[6].replace('<td>', '').replace(',', '') %}
+                        {% set skip_no_str = parts[5].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
+                        {% set skip_yes_str = parts[6].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
                         
-                        {% if 'NT' not in total_str %}
+                        {% if 'NT' not in total_str and total_str %}
                             {% set total = total_str|int %}
                             {% set passed = passed_str|int %}
                             
                             {% if '<span' in failed_str %}
                                 {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
                             {% else %}
-                                {% set failed = failed_str.replace('<td>', '').replace(',', '')|int %}
+                                {% set failed = failed_str.replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
                             {% endif %}
                             
                             {% set skip_no = skip_no_str|int %}
@@ -143,46 +144,57 @@
                             {% set parts = row.split('</td>') %}
                             {% if parts|length >= 8 %}
                                 {% set name = parts[0].replace('<td>', '') %}
-                                {% set total_str = parts[1].replace('<td>', '').replace(',', '') %}
+                                {# Clean name for display - remove HTML tags and decode entities #}
+                                {% set clean_name = name|safe %}
                                 
-                                {% if 'NT' not in total_str %}
-                                    {% set total = total_str|int %}
-                                    {% set executed = parts[2].replace('<td>', '').replace(',', '')|int %}
-                                    {% set passed = parts[3].replace('<td>', '').replace(',', '')|int %}
-                                    
-                                    {% set failed_str = parts[4] %}
-                                    {% if '<span' in failed_str %}
-                                        {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
-                                    {% else %}
-                                        {% set failed = failed_str.replace('<td>', '').replace(',', '')|int %}
-                                    {% endif %}
-                                    
-                                    {% set skip_no = parts[5].replace('<td>', '').replace(',', '')|int %}
-                                    {% set skip_yes = parts[6].replace('<td>', '').replace(',', '')|int %}
-                                    {% set timestamp = parts[7].replace('<td>', '') %}
-                                    {% set report_link = parts[8] %}
-                                    
-                                    {% set pass_rate = (passed / total * 100) if total > 0 else 0 %}
-                                    
-                                    <tr>
-                                        <td class="stage-name">{{ name }}</td>
-                                        <td><strong>{{ "{:,}".format(total) }}</strong></td>
-                                        <td><span class="result-badge passed">{{ "{:,}".format(passed) }}</span></td>
-                                        <td><span class="result-badge failed">{{ "{:,}".format(failed) }}</span></td>
-                                        <td><span class="result-badge skipped">{{ "{:,}".format(skip_no + skip_yes) }}</span></td>
-                                        <td>
-                                            <span style="font-weight: bold;" class="{% if pass_rate > 90 %}pass-rate-good{% elif pass_rate > 70 %}pass-rate-warning{% else %}pass-rate-danger{% endif %}">
-                                                {{ "%.1f"|format(pass_rate) }}%
-                                            </span>
-                                        </td>
-                                        <td class="timestamp">{{ timestamp }}</td>
-                                        <td>{{ report_link|safe }}</td>
+                                {# Skip header rows (those with <b> tags but not TOTAL) #}
+                                {% if '<b>' in name and 'TOTAL' not in name %}
+                                    {# This is a test type header row #}
+                                    <tr style="background: #f0f0f0;">
+                                        <td colspan="8" style="font-weight: bold; padding: 8px;">{{ clean_name }}</td>
                                     </tr>
                                 {% else %}
-                                    <tr>
-                                        <td class="stage-name">{{ name }}</td>
-                                        <td colspan="7" style="text-align: center; color: #6c757d;">Not Tested</td>
-                                    </tr>
+                                    {% set total_str = parts[1].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
+                                    
+                                    {% if 'NT' not in total_str and total_str %}
+                                        {% set total = total_str|int %}
+                                        {% set executed = parts[2].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
+                                        {% set passed = parts[3].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
+                                        
+                                        {% set failed_str = parts[4] %}
+                                        {% if '<span' in failed_str %}
+                                            {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
+                                        {% else %}
+                                            {% set failed = failed_str.replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
+                                        {% endif %}
+                                        
+                                        {% set skip_no = parts[5].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
+                                        {% set skip_yes = parts[6].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
+                                        {% set timestamp = parts[7].replace('<td>', '') %}
+                                        {% set report_link = parts[8] %}
+                                        
+                                        {% set pass_rate = (passed / total * 100) if total > 0 else 0 %}
+                                        
+                                        <tr {% if 'TOTAL' in name %}style="font-weight: bold; background: #f8f9fa;"{% endif %}>
+                                            <td class="stage-name">{{ clean_name }}</td>
+                                            <td><strong>{{ "{:,}".format(total) }}</strong></td>
+                                            <td><span class="result-badge passed">{{ "{:,}".format(passed) }}</span></td>
+                                            <td><span class="result-badge failed">{{ "{:,}".format(failed) }}</span></td>
+                                            <td><span class="result-badge skipped">{{ "{:,}".format(skip_no + skip_yes) }}</span></td>
+                                            <td>
+                                                <span style="font-weight: bold;" class="{% if pass_rate > 90 %}pass-rate-good{% elif pass_rate > 70 %}pass-rate-warning{% else %}pass-rate-danger{% endif %}">
+                                                    {{ "%.1f"|format(pass_rate) }}%
+                                                </span>
+                                            </td>
+                                            <td class="timestamp">{{ timestamp }}</td>
+                                            <td>{{ report_link|safe }}</td>
+                                        </tr>
+                                    {% elif 'NT' in total_str %}
+                                        <tr>
+                                            <td class="stage-name">{{ clean_name }}</td>
+                                            <td colspan="7" style="text-align: center; color: #6c757d;">Not Tested</td>
+                                        </tr>
+                                    {% endif %}
                                 {% endif %}
                             {% endif %}
                         {% endfor %}

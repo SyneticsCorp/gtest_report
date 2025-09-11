@@ -55,10 +55,12 @@ def render_report(project_name, report_name, xml_paths, output_path,
         loader=FileSystemLoader(str(tpl_dir)),
         autoescape=select_autoescape(["html"]),
     )
-    # Try to use improved report template if available
+    
+    # Always use Jenkins CSP-compatible template for consistency
     try:
-        tpl = env.get_template("report_improved.html")
+        tpl = env.get_template("report_jenkins.html")
     except:
+        # Fall back to original template if Jenkins template not found
         tpl = env.get_template("report.html")
 
     if sa_xml_path and sa_data:
@@ -89,6 +91,29 @@ def render_report(project_name, report_name, xml_paths, output_path,
             row_html(["Skipped Suites", str(skipped)]),
             row_html(["Earliest Timestamp", min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""]),
         ]
+
+        # Build file summary rows for UIT
+        file_rows = [
+            '<tr><th>Test File</th><th>Total Suites</th><th>Failed</th><th>Timestamp</th></tr>'
+        ]
+        for fr in results:
+            # Count suites in this file
+            file_suites = defaultdict(lambda: {"total": 0, "failed": 0})
+            for case in fr.cases:
+                suite, _ = case.name.split(".", 1)
+                file_suites[suite]["total"] = 1  # Each suite counts as 1
+                if case.status == "failed":
+                    file_suites[suite]["failed"] = 1
+            
+            total_suites = len(file_suites)
+            failed_suites = sum(1 for s in file_suites.values() if s["failed"] > 0)
+            
+            ts = fr.timestamp.strftime("%Y-%m-%d %H:%M:%S") if fr.timestamp else ""
+            fh = f'<span style="color:red;">{failed_suites}</span>' if failed_suites else "0"
+            file_rows.append(
+                f"<tr><td><a href='#detail_{fr.filename}'>{fr.filename}</a></td>"
+                f"<td>{total_suites}</td><td>{fh}</td><td>{ts}</td></tr>"
+            )
 
         failed_rows = ['<tr><th>Test Suite</th><th>Result</th></tr>']
         seen = set()
@@ -121,12 +146,52 @@ def render_report(project_name, report_name, xml_paths, output_path,
             "pass_values": jsonify([round(passed / total * 100, 2)] if total else []),
         }
 
+        # Build failed and skipped suite lists for UIT
+        failed_suites = []
+        skipped_suites = []
+        
+        for file, suites in suite_by_file.items():
+            for suite_info in suites:
+                if suite_info["status"] == "failed":
+                    # Create a mock case object for failed suites
+                    class MockCase:
+                        def __init__(self, suite_name):
+                            self.name = f"{suite_name}.TestCase"  # Mock format
+                            self.status = "failed"
+                            self.failure_message = "Suite contains failed tests"
+                    
+                    if suite_info["suite"] not in [s.name.split('.')[0] for s in failed_suites]:
+                        failed_suites.append(MockCase(suite_info["suite"]))
+                        
+                elif suite_info["status"] == "skipped":
+                    class MockCase:
+                        def __init__(self, suite_name):
+                            self.name = f"{suite_name}.TestCase"
+                            self.status = "skipped"
+                            self.failure_message = ""
+                    
+                    if suite_info["suite"] not in [s.name.split('.')[0] for s in skipped_suites]:
+                        skipped_suites.append(MockCase(suite_info["suite"]))
+        
+        # Create mock file results for template
+        class MockFileResult:
+            def __init__(self, failed_cases, skipped_cases):
+                self.cases = failed_cases + skipped_cases
+                self.failures = len(failed_cases)
+        
+        mock_results = [MockFileResult(failed_suites, skipped_suites)] if (failed_suites or skipped_suites) else []
+        
         html = tpl.render(
             title=f"{project_name} {report_name}",
             overall_rows=overall_rows,
             failed_rows=failed_rows,
-            file_rows=[],  # 제거
+            file_rows=file_rows,  # Pass file_rows for UIT
             test_details=detail_parts,
+            file_results=mock_results,  # Pass mock results for failed/skipped display
+            total_tests=total,
+            passed_tests=passed,
+            failed_tests=failures,
+            skipped_tests=skipped,
             **charts,
             report_name=report_name,
         )
@@ -223,6 +288,7 @@ def render_report(project_name, report_name, xml_paths, output_path,
         failed_rows=failed_rows,
         file_rows=file_rows,
         test_details=detail_parts,
+        file_results=results,  # Pass the raw results for failed test details
         total_tests=total,
         passed_tests=passed,
         failed_tests=failures,
