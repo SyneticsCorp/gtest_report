@@ -126,8 +126,11 @@ def render_report(project_name, report_name, xml_paths, output_path,
                     seen.add(suite_info["suite"])
 
         detail_parts = []
+        # Add header for detailed results section
+        detail_parts.append('<h2>Detailed Test Results</h2>')
+        
         for file, suites in suite_by_file.items():
-            detail_parts.append(f"<h3>{file}</h3>")
+            detail_parts.append(f'<h3 id="detail_{file}">{file}</h3>')
             detail_parts.append("""<table class="utests">
   <colgroup><col style="width:60%;"><col style="width:40%;"></colgroup>""")
             detail_parts.append("<tr><th>Test Suite</th><th>Result</th></tr>")
@@ -256,6 +259,9 @@ def render_report(project_name, report_name, xml_paths, output_path,
         )
 
     detail_parts = []
+    # Add header for detailed results section
+    detail_parts.append('<h2>Detailed Test Results</h2>')
+    
     for fr in results:
         detail_parts.append(f'<h3 id="detail_{fr.filename}">{fr.filename}</h3>')
         detail_parts.append("""<table class="utests">

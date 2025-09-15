@@ -493,5 +493,14 @@
     }
     </script>
     
+  <!-- Detailed Test Results Section -->
+  {% if test_details %}
+  <div style="margin-top: 30px;">
+    {% for detail in test_details %}
+      {{ detail | safe }}
+    {% endfor %}
+  </div>
+  {% endif %}
+
 </body>
 </html>
