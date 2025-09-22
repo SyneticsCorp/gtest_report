@@ -101,7 +101,15 @@ def parse_file(xml_path: Path | str) -> TestFileResult:
         elif tc.getElementsByTagName("skipped"):
             status = "skipped"
             skipped_count += 1
-            failure_message = ""
+            # Parse skip reason from message attribute
+            skipped_nodes = tc.getElementsByTagName("skipped")
+            if skipped_nodes:
+                node = skipped_nodes[0]
+                msg = node.getAttribute("message") or ""
+                text = node.firstChild.nodeValue if node.firstChild else ""
+                failure_message = (msg + "\n" + text).strip()
+            else:
+                failure_message = ""
         else:
             status = "success"
             failure_message = ""
