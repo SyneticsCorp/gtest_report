@@ -107,7 +107,15 @@ def parse_file(xml_path: Path | str) -> TestFileResult:
                 node = skipped_nodes[0]
                 msg = node.getAttribute("message") or ""
                 text = node.firstChild.nodeValue if node.firstChild else ""
-                failure_message = (msg + "\n" + text).strip()
+
+                # Avoid duplication: if text is similar to msg, use only msg
+                # XML often duplicates the message in both attribute and CDATA
+                if msg and text and msg.strip() in text.strip():
+                    failure_message = msg.strip()
+                elif msg and text:
+                    failure_message = (msg + "\n" + text).strip()
+                else:
+                    failure_message = msg.strip() or text.strip()
             else:
                 failure_message = ""
         else:
