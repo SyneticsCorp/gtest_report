@@ -84,36 +84,53 @@ def render_report(project_name, report_name, xml_paths, output_path,
         executed = total - skipped
         passed = executed - failures
 
+        # 개별 테스트 통계도 계산 (UT와 동일한 형식)
+        test_total = 0
+        test_failed = 0
+        test_skipped = 0
+        skipped_with_reason = 0
+        skipped_no_reason = 0
+
+        for fr in results:
+            test_total += fr.total
+            test_failed += fr.failures
+            test_skipped += fr.skipped
+
+            # Skipped 이유 구분
+            for case in fr.cases:
+                if case.status == "skipped":
+                    if getattr(case, "failure_message", "").strip():
+                        skipped_with_reason += 1
+                    else:
+                        skipped_no_reason += 1
+
+        test_executed = test_total - test_skipped
+        test_passed = test_executed - test_failed
+
+        # UT와 동일한 형식의 overall_rows
         overall_rows = [
-            row_html(["Total Test Suites", str(total)]),
-            row_html(["Executed Suites", str(executed)]),
-            row_html(["Passed Suites", str(passed)]),
-            row_html(["Failed Suites", f'<span style="color:red;">{failures}</span>']),
-            row_html(["Skipped Suites", str(skipped)]),
+            row_html(["Total XML files", str(len(results))]),
+            row_html(["Total Tests", str(test_total)]),
+            row_html(["Executed Tests", str(test_executed)]),
+            row_html(["Execution Rate (%)", f"{(test_passed + test_failed + skipped_with_reason) / test_total * 100:.2f}%" if test_total else ""]),
+            row_html(["Execution Rate (without Skipped) (%)", f"{(test_passed + test_failed) / test_total * 100:.2f}%" if test_total else ""]),
+            row_html(["Pass Rate (%)", f"{test_passed / test_total * 100:.2f}%" if test_total else ""]),
+            row_html(["Failed Tests", f'<span style="color:red;">{test_failed}</span>' if test_failed > 0 else "0"]),
+            row_html(["Skipped (No Reason Specified)", str(skipped_no_reason)]),
+            row_html(["Skipped (Reason Specified)", str(skipped_with_reason)]),
             row_html(["Earliest Timestamp", min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""]),
         ]
 
-        # Build file summary rows for UIT
+        # Build file summary rows for UIT (UT와 동일한 형식)
         file_rows = [
-            '<tr><th>Test File</th><th>Total Suites</th><th>Failed</th><th>Timestamp</th></tr>'
+            '<tr><th>Test File</th><th>Total Tests</th><th>Failed</th><th>Timestamp</th></tr>'
         ]
         for fr in results:
-            # Count suites in this file
-            file_suites = defaultdict(lambda: {"total": 0, "failed": 0})
-            for case in fr.cases:
-                suite, _ = case.name.split(".", 1)
-                file_suites[suite]["total"] = 1  # Each suite counts as 1
-                if case.status == "failed":
-                    file_suites[suite]["failed"] = 1
-            
-            total_suites = len(file_suites)
-            failed_suites = sum(1 for s in file_suites.values() if s["failed"] > 0)
-            
             ts = fr.timestamp.strftime("%Y-%m-%d %H:%M:%S") if fr.timestamp else ""
-            fh = f'<span style="color:red;">{failed_suites}</span>' if failed_suites else "0"
+            fh = f'<span style="color:red;">{fr.failures}</span>' if fr.failures else "0"
             file_rows.append(
                 f"<tr><td><a href='#detail_{fr.filename}'>{fr.filename}</a></td>"
-                f"<td>{total_suites}</td><td>{fh}</td><td>{ts}</td></tr>"
+                f"<td>{fr.total}</td><td>{fh}</td><td>{ts}</td></tr>"
             )
 
         failed_rows = ['<tr><th>Test Suite</th><th>Result</th></tr>']
@@ -150,48 +167,15 @@ def render_report(project_name, report_name, xml_paths, output_path,
             "pass_values": jsonify([round(passed / total * 100, 2)] if total else []),
         }
 
-        # Build failed and skipped suite lists for UIT
-        failed_suites = []
-        skipped_suites = []
-        
-        for file, suites in suite_by_file.items():
-            for suite_info in suites:
-                if suite_info["status"] == "failed":
-                    # Create a mock case object for failed suites
-                    class MockCase:
-                        def __init__(self, suite_name):
-                            self.name = f"{suite_name}.TestCase"  # Mock format
-                            self.status = "failed"
-                            self.failure_message = "Suite contains failed tests"
-                    
-                    if suite_info["suite"] not in [s.name.split('.')[0] for s in failed_suites]:
-                        failed_suites.append(MockCase(suite_info["suite"]))
-                        
-                elif suite_info["status"] == "skipped":
-                    class MockCase:
-                        def __init__(self, suite_name):
-                            self.name = f"{suite_name}.TestCase"
-                            self.status = "skipped"
-                            self.failure_message = ""
-                    
-                    if suite_info["suite"] not in [s.name.split('.')[0] for s in skipped_suites]:
-                        skipped_suites.append(MockCase(suite_info["suite"]))
-        
-        # Create mock file results for template
-        class MockFileResult:
-            def __init__(self, failed_cases, skipped_cases):
-                self.cases = failed_cases + skipped_cases
-                self.failures = len(failed_cases)
-        
-        mock_results = [MockFileResult(failed_suites, skipped_suites)] if (failed_suites or skipped_suites) else []
-        
+        # Pass actual test results to template (not mock data)
+        # The template will iterate through actual failed/skipped test cases
         html = tpl.render(
             title=f"{project_name} {report_name}",
             overall_rows=overall_rows,
             failed_rows=failed_rows,
-            file_rows=file_rows,  # Pass file_rows for UIT
+            file_rows=file_rows,
             test_details=detail_parts,
-            file_results=mock_results,  # Pass mock results for failed/skipped display
+            file_results=results,  # Pass actual results with real test cases
             total_tests=total,
             passed_tests=passed,
             failed_tests=failures,
