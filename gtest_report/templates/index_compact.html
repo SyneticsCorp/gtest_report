@@ -15,7 +15,7 @@
         <!-- 컴팩트 헤더 -->
         <div class="header-section">
             <h1 class="header-title">
-                <i class="fas fa-chart-line"></i> {{ project_name }} Test Dashboard
+                {{ project_name }} Test Dashboard
             </h1>
             <div class="build-info-inline">
                 {% if branch %}
@@ -52,37 +52,39 @@
                 <div class="summary-title">Overall Summary</div>
                 
                 <!-- Calculate totals properly -->
-                {% set ns = namespace(total_tests=0, total_passed=0, total_failed=0, total_skipped=0) %}
-                
+                {% set ns = namespace(total_tests=0, total_executed=0, total_passed=0, total_failed=0, total_skipped=0) %}
+
                 {% for row in index_rows %}
                     {% set cells = row.replace('<td>', '').replace('</td>', '').split('</td>') %}
                     {% set parts = row.split('</td>') %}
-                    
+
+                    {# New column structure: Test Stage | Total | Executed | Exec Rate | Pass Rate | Failed | Skipped | Timestamp | View Report #}
                     {# Only process TOTAL rows that have <b> tags and View Report link #}
-                    {% if parts|length >= 8 and '<b>TOTAL</b>' in parts[0] and 'View Report' in row %}
+                    {% if parts|length >= 9 and '<b>TOTAL</b>' in parts[0] and 'View Report' in row %}
                         {% set total_str = parts[1].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
-                        {% set passed_str = parts[3].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
-                        {% set failed_str = parts[4] %}
-                        {% set skip_no_str = parts[5].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
-                        {% set skip_yes_str = parts[6].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
-                        
+                        {% set executed_str = parts[2].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
+                        {# parts[3] is Execution Rate (%), parts[4] is Pass Rate (%) - skip these #}
+                        {% set failed_str = parts[5] %}
+                        {% set skipped_str = parts[6].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
+
                         {% if 'NT' not in total_str and total_str %}
                             {% set total = total_str|int %}
-                            {% set passed = passed_str|int %}
-                            
+                            {% set executed = executed_str|int %}
+
                             {% if '<span' in failed_str %}
                                 {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
                             {% else %}
                                 {% set failed = failed_str.replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
                             {% endif %}
-                            
-                            {% set skip_no = skip_no_str|int %}
-                            {% set skip_yes = skip_yes_str|int %}
-                            
+
+                            {% set skipped = skipped_str|int %}
+                            {% set passed = executed - failed %}
+
                             {% set ns.total_tests = ns.total_tests + total %}
+                            {% set ns.total_executed = ns.total_executed + executed %}
                             {% set ns.total_passed = ns.total_passed + passed %}
                             {% set ns.total_failed = ns.total_failed + failed %}
-                            {% set ns.total_skipped = ns.total_skipped + skip_no + skip_yes %}
+                            {% set ns.total_skipped = ns.total_skipped + skipped %}
                         {% endif %}
                     {% endif %}
                 {% endfor %}
@@ -108,9 +110,9 @@
                 
                 <div class="pass-rate-box">
                     <div class="pass-rate-label">Overall Pass Rate</div>
-                    <div class="pass-rate-value {% if ns.total_tests > 0 and ns.total_passed / ns.total_tests > 0.9 %}pass-rate-good{% elif ns.total_tests > 0 and ns.total_passed / ns.total_tests > 0.7 %}pass-rate-warning{% else %}pass-rate-danger{% endif %}">
-                        {% if ns.total_tests > 0 %}
-                            {{ "%.1f"|format((ns.total_passed / ns.total_tests * 100)) }}%
+                    <div class="pass-rate-value {% if (ns.total_passed + ns.total_failed) > 0 and ns.total_passed / (ns.total_passed + ns.total_failed) > 0.9 %}pass-rate-good{% elif (ns.total_passed + ns.total_failed) > 0 and ns.total_passed / (ns.total_passed + ns.total_failed) > 0.7 %}pass-rate-warning{% else %}pass-rate-danger{% endif %}">
+                        {% if (ns.total_passed + ns.total_failed) > 0 %}
+                            {{ "%.1f"|format((ns.total_passed / (ns.total_passed + ns.total_failed) * 100)) }}%
                         {% else %}
                             0%
                         {% endif %}
@@ -154,33 +156,35 @@
                                         <td colspan="8" style="font-weight: bold; padding: 8px;">{{ clean_name }}</td>
                                     </tr>
                                 {% else %}
+                                    {# New column structure: Test Stage | Total | Executed | Exec Rate | Pass Rate | Failed | Skipped | Timestamp | View Report #}
                                     {% set total_str = parts[1].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
-                                    
+
                                     {% if 'NT' not in total_str and total_str %}
                                         {% set total = total_str|int %}
                                         {% set executed = parts[2].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
-                                        {% set passed = parts[3].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
-                                        
-                                        {% set failed_str = parts[4] %}
+                                        {# parts[3] is Execution Rate, parts[4] is Pass Rate - we'll extract Pass Rate directly #}
+                                        {% set pass_rate_str = parts[4].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace('%', '') %}
+
+                                        {% set failed_str = parts[5] %}
                                         {% if '<span' in failed_str %}
                                             {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
                                         {% else %}
                                             {% set failed = failed_str.replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
                                         {% endif %}
-                                        
-                                        {% set skip_no = parts[5].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
-                                        {% set skip_yes = parts[6].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
+
+                                        {% set skipped = parts[6].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
                                         {% set timestamp = parts[7].replace('<td>', '') %}
                                         {% set report_link = parts[8] %}
-                                        
-                                        {% set pass_rate = (passed / total * 100) if total > 0 else 0 %}
-                                        
+
+                                        {% set passed = executed - failed %}
+                                        {% set pass_rate = pass_rate_str|float if pass_rate_str else 0.0 %}
+
                                         <tr {% if 'TOTAL' in name %}style="font-weight: bold; background: #f8f9fa;"{% endif %}>
                                             <td class="stage-name">{{ clean_name }}</td>
                                             <td><strong>{{ "{:,}".format(total) }}</strong></td>
                                             <td><span class="result-badge passed">{{ "{:,}".format(passed) }}</span></td>
                                             <td><span class="result-badge failed">{{ "{:,}".format(failed) }}</span></td>
-                                            <td><span class="result-badge skipped">{{ "{:,}".format(skip_no + skip_yes) }}</span></td>
+                                            <td><span class="result-badge skipped">{{ "{:,}".format(skipped) }}</span></td>
                                             <td>
                                                 <span style="font-weight: bold;" class="{% if pass_rate > 90 %}pass-rate-good{% elif pass_rate > 70 %}pass-rate-warning{% else %}pass-rate-danger{% endif %}">
                                                     {{ "%.1f"|format(pass_rate) }}%
@@ -200,11 +204,38 @@
                         {% endfor %}
                     </tbody>
                 </table>
-                
+
+                <!-- Module Test Summary -->
+                {% if module_rows %}
+                <div style="margin-top: 20px;">
+                    <div class="summary-title" style="margin-top: 20px;">Module Test Summary</div>
+
+                    <table class="stage-table" style="margin-top: 10px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">Module</th>
+                                <th style="width: 10%;">Total Tests</th>
+                                <th style="width: 10%;">Executed Tests</th>
+                                <th style="width: 10%;">Passed</th>
+                                <th style="width: 10%;">Failed</th>
+                                <th style="width: 12%;">Skipped (No Reason)</th>
+                                <th style="width: 13%;">Skipped (With Reason)</th>
+                                <th style="width: 10%;">Pass Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in module_rows %}
+                                <tr>{{ row|safe }}</tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
                 <!-- Static Analysis Summary -->
                 <div style="margin-top: 20px;">
                     <div class="summary-title" style="margin-top: 20px;">Static Analysis Summary</div>
-                    
+
                     <table class="stage-table" style="margin-top: 10px;">
                         <thead>
                             <tr>
@@ -231,11 +262,11 @@
                             {% endif %}
                         </tbody>
                     </table>
-                    
+
                     {% if sa_total_violations and sa_total_violations != "0" %}
                     <div style="margin-top: 10px; text-align: center;">
                         <a href="SA_Report.html" class="report-link">
-                            <i class="fas fa-external-link-alt"></i> View Detailed Static Analysis Report
+                            View Detailed Static Analysis Report
                         </a>
                     </div>
                     {% else %}
@@ -247,7 +278,7 @@
             </div>
         </div>
     </div>
-    
+
     <script src="html_resources/dashboard.js"></script>
 </body>
 </html>

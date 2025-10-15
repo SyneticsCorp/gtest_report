@@ -392,8 +392,8 @@ def main():
     
     for mod in module_data:
         pass_rate = 0
-        if mod['total'] > 0:
-            pass_rate = (mod['passed'] / mod['total']) * 100
+        if (mod['passed'] + mod['failed']) > 0:
+            pass_rate = (mod['passed'] / (mod['passed'] + mod['failed'])) * 100
         
         # Format failed count with red color if > 0
         fail_html = f"<span style='color:red;'>{mod['failed']:,}</span>" if mod['failed'] > 0 else f"{mod['failed']:,}"
@@ -457,6 +457,7 @@ def main():
             build_number=build_number,
             report_date=report_date,
             index_rows=index_rows,
+            module_rows=module_rows,  # Add module rows
             sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
             sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
         )
