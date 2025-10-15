@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ project_name }} Test Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    .card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); margin-bottom: 20px; }
+    h1 { margin: 0; font-size: 22px; color: #333; }
+    h2 { margin: 0 0 14px 0; font-size: 18px; color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid #e9ecef; text-align: left; }
+    th { background: #2c3e50; color: #fff; font-weight: normal; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .stat { padding: 14px; border-radius: 6px; background: #fafafa; text-align: center; }
+    .stat .val { font-size: 22px; font-weight: 700; color: #2c3e50; }
+    .stat .lab { margin-top: 6px; font-size: 12px; color: #6c757d; text-transform: uppercase; }
+    .passed { background: #d4edda; }
+    .failed { background: #f8d7da; }
+    .skipped { background: #fff3cd; }
+    .header { display: flex; justify-content: space-between; align-items: center; }
+    .meta { display: flex; gap: 16px; font-size: 13px; color: #555; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .badge.pass { background: #d4edda; color: #155724; }
+    .badge.fail { background: #f8d7da; color: #721c24; }
+    .badge.skip { background: #fff3cd; color: #856404; }
+    @media (max-width: 768px) { .stats { grid-template-columns: 1fr 1fr; } .meta { flex-wrap: wrap; } }
+  </style>
+  </head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <h1>{{ project_name }} Test Dashboard</h1>
+        <div class="meta">
+          {% if branch %}<div><b>Branch</b>: {{ branch }}</div>{% endif %}
+          {% if build_number %}<div><b>Build</b>: #{{ build_number }}</div>{% endif %}
+          {% if commit_id %}<div><b>Commit</b>: {{ commit_id[:8] if commit_id|length > 8 else commit_id }}</div>{% endif %}
+          {% if report_date %}<div><b>Generated</b>: {{ report_date }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Overall Summary</h2>
+      {% set ns = namespace(total=0, passed=0, failed=0, skipped=0) %}
+      {% for row in index_rows %}
+        {% set p = row.replace('<td>', '').split('</td>') %}
+        {% if p|length >= 8 and 'NT' not in p[1] %}
+          {% set ns.total = ns.total + (p[1].replace(',', '')|int) %}
+          {% set ns.passed = ns.passed + (p[2].replace(',', '')|int) %}
+          {# failed may contain span #}
+          {% if '<span' in p[3] %}
+            {% set f = p[3].split('>')[2].split('<')[0].replace(',', '')|int %}
+          {% else %}
+            {% set f = p[3].replace(',', '')|int %}
+          {% endif %}
+          {% set ns.failed = ns.failed + f %}
+          {% set ns.skipped = ns.skipped + (p[4].replace(',', '')|int) + (p[5].replace(',', '')|int) %}
+        {% endif %}
+      {% endfor %}
+
+      <div class="stats">
+        <div class="stat"><div class="val">{{ "{:,}".format(ns.total) }}</div><div class="lab">Total</div></div>
+        <div class="stat passed"><div class="val">{{ "{:,}".format(ns.passed) }}</div><div class="lab">Passed</div></div>
+        <div class="stat failed"><div class="val">{{ "{:,}".format(ns.failed) }}</div><div class="lab">Failed</div></div>
+        <div class="stat skipped"><div class="val">{{ "{:,}".format(ns.skipped) }}</div><div class="lab">Skipped</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Test Results by Stage</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Test Stage</th>
+            <th>Total</th>
+            <th>Passed</th>
+            <th>Failed</th>
+            <th>Skipped</th>
+            <th>Pass Rate</th>
+            <th>Timestamp</th>
+            <th>Report</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in index_rows %}
+            {% set p = row.split('</td>') %}
+            {% if p|length >= 8 %}
+              {% set name = p[0].replace('<td>', '') %}
+              {% set total_str = p[1].replace('<td>', '').replace(',', '') %}
+              {% if 'NT' in total_str %}
+                <tr>
+                  <td>{{ name }}</td>
+                  <td colspan="7" style="text-align:center;color:#6c757d;">Not Tested</td>
+                </tr>
+              {% else %}
+                {% set total = total_str|int %}
+                {% set passed = p[2].replace('<td>', '').replace(',', '')|int %}
+                {% set failed_str = p[3] %}
+                {% if '<span' in failed_str %}
+                  {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
+                {% else %}
+                  {% set failed = failed_str.replace('<td>', '').replace(',', '')|int %}
+                {% endif %}
+                {% set skipped = p[4].replace('<td>', '').replace(',', '')|int + p[5].replace('<td>', '').replace(',', '')|int %}
+                {% set timestamp = p[6].replace('<td>', '') %}
+                {% set report_link = p[7].replace('<td>', '') %}
+                {% set pass_rate = (passed / total * 100) if total > 0 else 0 %}
+                <tr>
+                  <td>{{ name }}</td>
+                  <td><strong>{{ "{:,}".format(total) }}</strong></td>
+                  <td><span class="badge pass">{{ "{:,}".format(passed) }}</span></td>
+                  <td><span class="badge fail">{{ "{:,}".format(failed) }}</span></td>
+                  <td><span class="badge skip">{{ "{:,}".format(skipped) }}</span></td>
+                  <td><strong style="color:{% if pass_rate>90 %}#28a745{% elif pass_rate>70 %}#ffc107{% else %}#dc3545{% endif %};">{{ "%.1f"|format(pass_rate) }}%</strong></td>
+                  <td style="color:#6c757d;">{{ timestamp }}</td>
+                  <td style="vertical-align: bottom;">
+                    <div style="display:inline-block; margin-top:6px;">{{ report_link|safe }}</div>
+                  </td>
+                </tr>
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

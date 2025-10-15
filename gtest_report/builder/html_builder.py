@@ -1,4 +1,4 @@
-import shutil
+﻿import shutil
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from collections import defaultdict
@@ -10,7 +10,7 @@ ICON_FILES = {
     "passed": "gtest_report_ok.png",
     "failed": "gtest_report_notok.png",
     "skipped": "gtest_report_disable.png",
-    "success": "gtest_report_ok.png",  # success를 passed와 동일하게 처리
+    "success": "gtest_report_ok.png",  # success瑜?passed? ?숈씪?섍쾶 泥섎━
 }
 
 def format_icon(status: str) -> str:
@@ -57,11 +57,10 @@ def render_report(project_name, report_name, xml_paths, output_path,
         autoescape=select_autoescape(["html"]),
     )
     
-    # Always use Jenkins CSP-compatible template for consistency
+    # Prefer Jenkins-styled detailed template (with FC breakdown); fallback to classic.
     try:
         tpl = env.get_template("report_jenkins.html")
-    except:
-        # Fall back to original template if Jenkins template not found
+    except Exception:
         tpl = env.get_template("report.html")
 
     if sa_xml_path and sa_data:
@@ -79,12 +78,20 @@ def render_report(project_name, report_name, xml_paths, output_path,
 
     results, _, _, _, _ = parse_files(xml_paths)
 
+    # Ensure html resources are available for icons/CSS
+    res_src = Path(__file__).parent.parent / "html_resources"
+    res_dst = output_path.parent / "html_resources"
+    try:
+        res_dst.mkdir(exist_ok=True)
+        shutil.copytree(res_src, res_dst, dirs_exist_ok=True)
+    except Exception:
+        pass
     if report_name == "Unit Integration Test":
         total, failures, skipped, timestamps, suite_by_file = aggregate_suites_by_file(results)
         executed = total - skipped
         passed = executed - failures
 
-        # 개별 테스트 통계도 계산 (UT와 동일한 형식)
+        # 媛쒕퀎 ?뚯뒪???듦퀎??怨꾩궛 (UT? ?숈씪???뺤떇)
         test_total = 0
         test_failed = 0
         test_skipped = 0
@@ -96,7 +103,7 @@ def render_report(project_name, report_name, xml_paths, output_path,
             test_failed += fr.failures
             test_skipped += fr.skipped
 
-            # Skipped 이유 구분
+            # Skipped ?댁쑀 援щ텇
             for case in fr.cases:
                 if case.status == "skipped":
                     if getattr(case, "failure_message", "").strip():
@@ -107,7 +114,7 @@ def render_report(project_name, report_name, xml_paths, output_path,
         test_executed = test_total - test_skipped
         test_passed = test_executed - test_failed
 
-        # UT와 동일한 형식의 overall_rows
+        # UT? ?숈씪???뺤떇??overall_rows
         overall_rows = [
             row_html(["Total XML files", str(len(results))]),
             row_html(["Total Tests", str(test_total)]),
@@ -121,7 +128,7 @@ def render_report(project_name, report_name, xml_paths, output_path,
             row_html(["Earliest Timestamp", min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""]),
         ]
 
-        # Build file summary rows for UIT (UT와 동일한 형식)
+        # Build file summary rows for UIT (UT? ?숈씪???뺤떇)
         file_rows = [
             '<tr><th>Test File</th><th>Total Tests</th><th>Failed</th><th>Timestamp</th></tr>'
         ]
@@ -133,29 +140,32 @@ def render_report(project_name, report_name, xml_paths, output_path,
                 f"<td>{fr.total}</td><td>{fh}</td><td>{ts}</td></tr>"
             )
 
-        failed_rows = ['<tr><th>Test Suite</th><th>Result</th></tr>']
+        failed_rows = ['<tr><th>Test Case</th><th>Result</th></tr>']
         seen = set()
-        for file, suites in suite_by_file.items():
-            for suite_info in suites:
-                if suite_info["status"] == "failed" and suite_info["suite"] not in seen:
-                    failed_rows.append(
-                        f"<tr><td>{suite_info['suite']}</td><td>{format_icon('failed')}</td></tr>"
-                    )
-                    seen.add(suite_info["suite"])
+        for fr in results:
+            for case in fr.cases:
+                if case.status == "failed":
+                    case_name = case.name.split('.', 1)[1] if '.' in case.name else case.name
+                    key = (fr.filename, case_name)
+                    if key not in seen:
+                        failed_rows.append(
+                            f"<tr><td>{case_name}</td><td>{format_icon('failed')}</td></tr>"
+                        )
+                        seen.add(key)
 
         detail_parts = []
         # Add header for detailed results section
         detail_parts.append('<h2>Detailed Test Results</h2>')
         
-        for file, suites in suite_by_file.items():
-            detail_parts.append(f'<h3 id="detail_{file}">{file}</h3>')
+        for fr in results:
+            detail_parts.append(f'<h3 id="detail_{fr.filename}">{fr.filename}</h3>')
             detail_parts.append("""<table class="utests">
-  <colgroup><col style="width:60%;"><col style="width:40%;"></colgroup>""")
-            detail_parts.append("<tr><th>Test Suite</th><th>Result</th></tr>")
-            for suite_info in suites:
-                detail_parts.append(
-                    f"<tr><td>{suite_info['suite']}</td><td>{format_icon(suite_info['status'])}</td></tr>"
-                )
+  <colgroup><col style="width:85%;"><col style="width:15%;"></colgroup>""")
+            detail_parts.append("<tr><th>Test Case</th><th>Result</th></tr>")
+            for case in fr.cases:
+                case_name = case.name.split('.', 1)[1] if '.' in case.name else case.name
+                detail_parts.append(f"<tr><td>{case_name}</td><td>{format_icon(case.status)}</td></tr>")
+            
             detail_parts.append("</table>")
 
         charts = {
@@ -186,9 +196,9 @@ def render_report(project_name, report_name, xml_paths, output_path,
         output_path.write_text(html, encoding="utf-8")
         return
 
-    # UT 등 기존 로직은 그대로 유지 (필요 시 요청 주시면 포함해드립니다)
+    # UT ??湲곗〈 濡쒖쭅? 洹몃?濡??좎? (?꾩슂 ???붿껌 二쇱떆硫??ы븿?대뱶由쎈땲??
 
-    # UT 등 기본 처리
+    # UT ??湲곕낯 泥섎━
     results, total, failures, skipped, timestamps = parse_files(xml_paths)
     executed = total - skipped
     passed = executed - failures
@@ -223,14 +233,12 @@ def render_report(project_name, report_name, xml_paths, output_path,
         row_html(["Earliest Timestamp", earliest]),
     ]
 
-    failed_rows = ['<tr><th>Test Suite</th><th>Test Case</th><th>Result</th></tr>']
+    failed_rows = ['<tr><th>Test Case</th><th>Result</th></tr>']
     for fr in results:
         for case in fr.cases:
             if case.status == "failed":
-                suite, case_name = case.name.split(".", 1)
-                aid = sanitize_id(f"{fr.filename}_{case.name}")
-                link = f'<a href="#test_{aid}">{case_name}</a>'
-                failed_rows.append(f"<tr><td>{suite}</td><td>{link}</td><td>{format_icon(case.status)}</td></tr>")
+                case_name = case.name.split(".", 1)[1] if "." in case.name else case.name
+                failed_rows.append(f"<tr><td>{case_name}</td><td>{format_icon(case.status)}</td></tr>")
 
     file_rows = [
         '<tr><th>Test File</th><th>Total Tests</th><th>Failed</th><th>Timestamp</th></tr>'
@@ -251,16 +259,15 @@ def render_report(project_name, report_name, xml_paths, output_path,
         detail_parts.append(f'<h3 id="detail_{fr.filename}">{fr.filename}</h3>')
         detail_parts.append("""<table class="utests">
   <colgroup>
-    <col style="width:40%;">
-    <col style="width:40%;">
-    <col style="width:20%;">
+    <col style="width:85%;">
+    <col style="width:15%;">
   </colgroup>""")
-        detail_parts.append('<tr><th>Test Suite</th><th>Test Case</th><th>Result</th></tr>')
+        detail_parts.append('<tr><th>Test Case</th><th>Result</th></tr>')
         for case in fr.cases:
-            suite, case_name = case.name.split(".", 1)
+            case_name = case.name.split(".", 1)[1] if "." in case.name else case.name
             aid = sanitize_id(f"{fr.filename}_{case.name}")
             detail_parts.append(
-                f'<tr id="test_{aid}"><td>{suite}</td><td>{case_name}</td><td>{format_icon(case.status)}</td></tr>'
+                f'<tr id="test_{aid}"><td>{case_name}</td><td>{format_icon(case.status)}</td></tr>'
             )
         detail_parts.append("</table>")
 
@@ -288,3 +295,4 @@ def render_report(project_name, report_name, xml_paths, output_path,
         report_name=report_name,
     )
     output_path.write_text(html, encoding="utf-8")
+

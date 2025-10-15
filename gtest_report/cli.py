@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 import argparse
 import re
 from pathlib import Path
@@ -14,13 +14,10 @@ from .builder.html_builder import render_report
 from .sa_component_report_generator import generate_sa_component_reports
 from .sa_summary_parser import parse_sa_file_enhanced
 
-REPORT_TYPES  = ["UT", "UIT", "SCT", "SCIT", "SRT"]
+REPORT_TYPES  = ["UT", "UIT"]
 DISPLAY_NAMES = {
     "UT":   "Unit Test",
     "UIT":  "Unit Integration Test",
-    "SCT":  "Component Test",
-    "SCIT": "Component Integration Test",
-    "SRT":  "SW Requirement Test",
 }
 
 def _worker(task):
@@ -33,8 +30,8 @@ def _worker(task):
 
 def aggregate_suites_from_ut(results):
     """
-    UT의 TestCaseResult 리스트로부터 Test Suite 단위 집계 수행
-    Test Suite 내 하나라도 실패 케이스 있으면 Suite 전체 실패 처리.
+    UT??TestCaseResult 由ъ뒪?몃줈遺??Test Suite ?⑥쐞 吏묎퀎 ?섑뻾
+    Test Suite ???섎굹?쇰룄 ?ㅽ뙣 耳?댁뒪 ?덉쑝硫?Suite ?꾩껜 ?ㅽ뙣 泥섎━.
     """
     suite_status_map = {}  # suite_name -> status ('passed','failed','skipped')
     timestamps = []
@@ -64,41 +61,51 @@ def aggregate_suites_from_ut(results):
     return total_suites, failures, skipped, timestamps, suite_results
 
 def build_index_cells_for_uit(report_type: str, xml_paths: list[Path]) -> str:
+    # For the simplified dashboard we use the same simple row format
+    return build_index_cells_simple(report_type, xml_paths)
+
+def build_index_cells_simple(report_type: str, xml_paths: list[Path]) -> str:
+    """
+    Build a 9-cell row for improved index template:
+    [Name, Total, Executed, Passed, Failed, Skipped(No), Skipped(Yes), Timestamp, Link]
+    """
     name = DISPLAY_NAMES[report_type]
-    if xml_paths:
-        results, _, _, _, timestamps = parse_files(xml_paths)
-        total, failures, skipped, _, _ = aggregate_suites_from_ut(results)
-        executed = total - skipped
-        successes = executed - failures
-
-        ts_str = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""
-        link = f'<a href="{report_type}_Report.html">View Report</a>'
-        fail_html = f'<span style="color:red;">{failures:,}</span>' if failures else "0"
-
-        # Calculate rates
-        exec_rate = f"{(executed / total * 100):.1f}%" if total > 0 else "0.0%"
-        pass_rate = f"{(successes / (successes + failures) * 100):.1f}%" if (successes + failures) > 0 else "0.0%"
-
-        cells = [
-            name,
-            f"{total:,}",
-            f"{executed:,}",
-            exec_rate,
-            pass_rate,
-            fail_html,
-            f"{skipped:,}",  # Total skipped
-            ts_str,
-            link,
-        ]
-    else:
+    if not xml_paths:
         cells = [name] + ["NT"] * 8
+        return "".join(f"<td>{c}</td>" for c in cells)
 
+    results, total, failures, _skipped_total, timestamps = parse_files(xml_paths)
+    skipped_with_reason = 0
+    skipped_no_reason = 0
+    for fr in results:
+        for case in fr.cases:
+            if case.status == "skipped":
+                if getattr(case, "failure_message", "").strip():
+                    skipped_with_reason += 1
+                else:
+                    skipped_no_reason += 1
+
+    executed = total - (skipped_no_reason + skipped_with_reason)
+    passed = executed - failures
+    ts_str = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""
+    fail_html = f"<span style='color:red;'>{failures:,}</span>" if failures else "0"
+    link = f'<a href="{report_type}_Report.html">View Report</a>'
+
+    cells = [
+        name,
+        f"{total:,}",
+        f"{executed:,}",
+        f"{passed:,}",
+        fail_html,
+        f"{skipped_no_reason:,}",
+        f"{skipped_with_reason:,}",
+        ts_str,
+        link,
+    ]
     return "".join(f"<td>{c}</td>" for c in cells)
-
 def _worker_uit(task):
     rtype, project, name, xmls, out_root = task
     try:
-        # UIT는 UT xmls 사용, Test Suite 단위로 집계 (필요시 커스텀 리포트 로직 추가 가능)
         render_report(project, name, xmls, out_root / f"{rtype}_Report.html")
         return (rtype, True, None)
     except Exception as e:
@@ -207,7 +214,7 @@ def generate_module_original_reports(project_name, input_root, output_root, bran
             for future in as_completed(future_map):
                 rtype, success, err = future.result()
                 if success:
-                    print(f"    → {rtype}_Report.html generated for {module}")
+                    print(f"    ??{rtype}_Report.html generated for {module}")
                 else:
                     print(f"    [ERROR] {rtype}: {err}", file=sys.stderr)
         
@@ -239,23 +246,25 @@ def generate_module_original_reports(project_name, input_root, output_root, bran
         # Save module-specific original index
         module_index_path = output_root / f"index_original_{module}.html"
         module_index_path.write_text(html_content, encoding="utf-8")
-        print(f"    → Original index generated: index_original_{module}.html")
+        print(f"    ??Original index generated: index_original_{module}.html")
 
 def main():
     parser = argparse.ArgumentParser(
         description="Generate GTest HTML reports and index with Jenkins build info"
     )
-    parser.add_argument("project",    help="프로젝트명")
-    parser.add_argument("input_dir",  help="in 폴더 경로")
-    parser.add_argument("output_dir", help="out 폴더 경로")
-    parser.add_argument("--branch",   help="Git 브랜치명",     default=None)
-    parser.add_argument("--tag",      help="Release Tag",      default=None)
-    parser.add_argument("--commit",   help="Commit ID",        default=None)
-    parser.add_argument("--build",    help="Jenkins Build #",   default=None)
+    parser.add_argument("project",    help="Project name to display")
+    parser.add_argument("input_dir",  help="Path to input folder (in)")
+    parser.add_argument("output_dir", help="Path to output folder (out)")
+    parser.add_argument("--branch",   help="Git branch name",    default=None)
+    parser.add_argument("--tag",      help="Release Tag",        default=None)
+    parser.add_argument("--commit",   help="Commit SHA",         default=None)
+    parser.add_argument("--build",    help="Jenkins Build #",    default=None)
     parser.add_argument("--debug",    action="store_true", help="Enable debug mode to output etc.txt")
     args = parser.parse_args()
 
     project_name = args.project
+    if isinstance(project_name, str) and project_name.strip().upper() == "PARA":
+        project_name = "AutosarIO"
     input_root = Path(args.input_dir)
     output_root = Path(args.output_dir)
     branch = args.branch
@@ -271,17 +280,12 @@ def main():
     print(f"Input: {input_root}, Output: {output_root}\n")
 
     tasks = []
+    folder_map = {"UT": "unit", "UIT": "uit"}
     for rtype in REPORT_TYPES:
-        if rtype == "UIT":
-            xmls = list((input_root / "UIT").glob("*.xml"))  # UIT uses UIT directory
-            cells_func = build_index_cells_for_uit
-            worker_func = _worker_uit
-        else:
-            xmls = list((input_root / rtype).glob("*.xml"))
-            cells_func = build_index_cells
-            worker_func = _worker
-
-        print(f"Processing {rtype} ({DISPLAY_NAMES[rtype]}): {len(xmls)} XML files found.")
+        sub = folder_map[rtype]
+        xmls = list((input_root / sub).glob("*.xml"))
+        worker_func = _worker_uit if rtype == "UIT" else _worker
+        print(f"Processing {rtype} ({DISPLAY_NAMES[rtype]}): {len(xmls)} XML files found from '{sub}/'.")
         tasks.append((rtype, project_name, DISPLAY_NAMES[rtype], xmls, output_root))
 
     with ProcessPoolExecutor() as executor:
@@ -289,44 +293,16 @@ def main():
         for future in as_completed(future_map):
             rtype, success, err = future.result()
             if success:
-                print(f"  → {rtype}_Report.html generated")
+                print(f"  ??{rtype}_Report.html generated")
             else:
                 print(f"[ERROR] {rtype}: {err}", file=sys.stderr)
 
-    # Generate index rows with module breakdown
+    # Build minimal index rows (no module/SA)
     index_rows = []
     for rtype in REPORT_TYPES:
-        # Get all module rows for this test type
-        if rtype == "UIT":
-            # UIT uses UIT XML files
-            xmls = list((input_root / "UIT").glob("*.xml"))
-        else:
-            xmls = list((input_root / rtype).glob("*.xml"))
-        
-        module_rows = build_index_cells_with_modules(rtype, xmls, include_total=True)
-        index_rows.extend(module_rows)
-
-    # SA 보고서 처리
-    sa_report_path = input_root / "SA" / "report.xml"
-    sa_data = {}
-
-    if sa_report_path.exists():
-        print(f"Processing Static Analysis report: {sa_report_path}")
-        sa_data = parse_sa_file_enhanced(sa_report_path, debug=debug_mode)
-        render_report(
-            project_name,
-            "Static Analysis",
-            [],
-            output_root / "SA_Report.html",
-            sa_xml_path=sa_report_path,
-            sa_data=sa_data,
-        )
-        print("  → SA_Report.html generated")
-
-        generate_sa_component_reports(sa_report_path, output_root)
-        print("  → SA Component detailed reports generated")
-    else:
-        print("No Static Analysis report found.")
+        sub = folder_map[rtype]
+        xmls = list((input_root / sub).glob("*.xml"))
+        index_rows.append(build_index_cells_simple(rtype, xmls))
 
     tpl_dir = Path(__file__).parent / "templates"
     env = Environment(
@@ -334,92 +310,13 @@ def main():
         autoescape=select_autoescape(["html"])
     )
     
-    # Generate improved version as main (index.html) - using inline styles for Jenkins CSP compatibility
+    # Generate improved index (cards/table layout)
     try:
-        # Try to use inline style template for Jenkins CSP compatibility
-        tpl_improved = env.get_template("index_compact_inline.html")
-        html_improved = tpl_improved.render(
-            project_name=project_name,
-            branch=branch,
-            release_tag=release_tag,
-            commit_id=commit_id,
-            build_number=build_number,
-            report_date=report_date,
-            index_rows=index_rows,
-            sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
-            sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
-        )
-        (output_root / "index.html").write_text(html_improved, encoding="utf-8")
-        print(f"\nImproved index (inline styles) generated at {output_root / 'index.html'}")
+        tpl_index = env.get_template("index_jenkins.html")
     except Exception:
-        # Fallback to compact template if inline not found
-        try:
-            tpl_compact = env.get_template("index_compact.html")
-            html_compact = tpl_compact.render(
-                project_name=project_name,
-                branch=branch,
-                release_tag=release_tag,
-                commit_id=commit_id,
-                build_number=build_number,
-                report_date=report_date,
-                index_rows=index_rows,
-                sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
-                sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
-            )
-            (output_root / "index.html").write_text(html_compact, encoding="utf-8")
-            print(f"\nCompact index generated at {output_root / 'index.html'}")
-        except Exception:
-            # Final fallback to original template
-            tpl_main = env.get_template("index.html")
-            html_main = tpl_main.render(
-                project_name=project_name,
-                branch=branch,
-                release_tag=release_tag,
-                commit_id=commit_id,
-                build_number=build_number,
-                report_date=report_date,
-                index_rows=index_rows,
-                sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
-                sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
-            )
-            (output_root / "index.html").write_text(html_main, encoding="utf-8")
-            print(f"\nMain index generated at {output_root / 'index.html'}")
-    
-    # Always generate original version as index_original.html (integrated view)
-    # Collect module test data
-    module_data = collect_module_test_data(input_root)
-    module_rows = []
-    
-    for mod in module_data:
-        pass_rate = 0
-        if (mod['passed'] + mod['failed']) > 0:
-            pass_rate = (mod['passed'] / (mod['passed'] + mod['failed'])) * 100
-        
-        # Format failed count with red color if > 0
-        fail_html = f"<span style='color:red;'>{mod['failed']:,}</span>" if mod['failed'] > 0 else f"{mod['failed']:,}"
-        
-        # Format pass rate with color coding
-        if pass_rate >= 90:
-            pass_rate_html = f"<span style='color:green;'>{pass_rate:.1f}%</span>"
-        elif pass_rate >= 70:
-            pass_rate_html = f"<span style='color:orange;'>{pass_rate:.1f}%</span>"
-        else:
-            pass_rate_html = f"<span style='color:red;'>{pass_rate:.1f}%</span>"
-        
-        row = [
-            f"<td><strong>{mod['name']}</strong></td>",
-            f"<td>{mod['total']:,}</td>",
-            f"<td>{mod['executed']:,}</td>",
-            f"<td>{mod['passed']:,}</td>",
-            f"<td>{fail_html}</td>",
-            f"<td>{mod['skipped_no_reason']:,}</td>",
-            f"<td>{mod['skipped_with_reason']:,}</td>",
-            f"<td>{pass_rate_html}</td>"
-        ]
-        module_rows.append("".join(row))
-    
-    tpl_original = env.get_template("index.html")
-    html_original = tpl_original.render(
+        tpl_index = env.get_template("index_minimal_inline.html")
+
+    html_index = tpl_index.render(
         project_name=project_name,
         branch=branch,
         release_tag=release_tag,
@@ -427,26 +324,13 @@ def main():
         build_number=build_number,
         report_date=report_date,
         index_rows=index_rows,
-        module_rows=module_rows,  # Add module rows
-        sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
-        sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
+        sa_total_violations="0",
+        sa_component_counts={},
     )
-    (output_root / "index_original.html").write_text(html_original, encoding="utf-8")
-    print(f"Original index (integrated) generated at {output_root / 'index_original.html'}")
-    
-    # Generate module-specific original reports
-    print("\nGenerating module-specific original reports...")
-    generate_module_original_reports(
-        project_name=project_name,
-        input_root=input_root,
-        output_root=output_root,
-        branch=branch,
-        tag=release_tag,
-        commit=commit_id,
-        build=build_number
-    )
-    
-    # Also generate compact version with external CSS for environments without CSP
+    (output_root / "index.html").write_text(html_index, encoding="utf-8")
+    print(f"\nIndex generated at {output_root / 'index.html'} (improved template)")
+
+    # Also generate compact external variant for environments without CSP constraints
     try:
         tpl_compact_ext = env.get_template("index_compact.html")
         html_compact_ext = tpl_compact_ext.render(
@@ -457,16 +341,14 @@ def main():
             build_number=build_number,
             report_date=report_date,
             index_rows=index_rows,
-            module_rows=module_rows,  # Add module rows
-            sa_total_violations=f"{sa_data.get('total_violations', 0):,}" if sa_data else "0",
-            sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()} if sa_data else {},
         )
         (output_root / "index_compact_external.html").write_text(html_compact_ext, encoding="utf-8")
         print(f"Compact index (external CSS) generated at {output_root / 'index_compact_external.html'}")
     except Exception:
         pass
-    
+
     print("All reports processed successfully.")
+    return
 
 def build_index_cells_with_modules(report_type: str, xml_paths: list[Path], include_total: bool = False) -> list[str]:
     """Build index cells with module breakdown (returns multiple rows)"""
@@ -608,3 +490,5 @@ def build_index_cells(report_type: str, xml_paths: list[Path]) -> str:
 
 if __name__ == "__main__":
     main()
+
+

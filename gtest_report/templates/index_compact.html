@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -12,7 +12,7 @@
 </head>
 <body>
     <div class="compact-container">
-        <!-- 컴팩트 헤더 -->
+        <!-- 而댄뙥???ㅻ뜑 -->
         <div class="header-section">
             <h1 class="header-title">
                 {{ project_name }} Test Dashboard
@@ -45,40 +45,31 @@
             </div>
         </div>
         
-        <!-- 메인 콘텐츠 그리드 -->
+        <!-- 硫붿씤 肄섑뀗痢?洹몃━??-->
         <div class="main-grid">
-            <!-- 왼쪽: 총 요약 -->
+            <!-- ?쇱そ: 珥??붿빟 -->
             <div class="summary-panel">
                 <div class="summary-title">Overall Summary</div>
                 
-                <!-- Calculate totals properly -->
+                <!-- Calculate totals for our 9-column rows: [Name, Total, Executed, Passed, Failed, Skipped(No), Skipped(Yes), Timestamp, Link] -->
                 {% set ns = namespace(total_tests=0, total_executed=0, total_passed=0, total_failed=0, total_skipped=0) %}
-
                 {% for row in index_rows %}
-                    {% set cells = row.replace('<td>', '').replace('</td>', '').split('</td>') %}
                     {% set parts = row.split('</td>') %}
-
-                    {# New column structure: Test Stage | Total | Executed | Exec Rate | Pass Rate | Failed | Skipped | Timestamp | View Report #}
-                    {# Only process TOTAL rows that have <b> tags and View Report link #}
-                    {% if parts|length >= 9 and '<b>TOTAL</b>' in parts[0] and 'View Report' in row %}
-                        {% set total_str = parts[1].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
-                        {% set executed_str = parts[2].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
-                        {# parts[3] is Execution Rate (%), parts[4] is Pass Rate (%) - skip these #}
-                        {% set failed_str = parts[5] %}
-                        {% set skipped_str = parts[6].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
-
+                    {% if parts|length >= 9 %}
+                        {% set total_str = parts[1].replace('<td>', '').replace(',', '') %}
                         {% if 'NT' not in total_str and total_str %}
                             {% set total = total_str|int %}
-                            {% set executed = executed_str|int %}
-
+                            {% set executed = parts[2].replace('<td>', '').replace(',', '')|int %}
+                            {% set passed = parts[3].replace('<td>', '').replace(',', '')|int %}
+                            {% set failed_str = parts[4] %}
                             {% if '<span' in failed_str %}
                                 {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
                             {% else %}
-                                {% set failed = failed_str.replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
+                                {% set failed = failed_str.replace('<td>', '').replace(',', '')|int %}
                             {% endif %}
-
-                            {% set skipped = skipped_str|int %}
-                            {% set passed = executed - failed %}
+                            {% set skipped_no = parts[5].replace('<td>', '').replace(',', '')|int %}
+                            {% set skipped_yes = parts[6].replace('<td>', '').replace(',', '')|int %}
+                            {% set skipped = skipped_no + skipped_yes %}
 
                             {% set ns.total_tests = ns.total_tests + total %}
                             {% set ns.total_executed = ns.total_executed + executed %}
@@ -124,7 +115,7 @@
                 </div>
             </div>
             
-            <!-- 오른쪽: 상세 테이블 -->
+            <!-- ?ㅻⅨ履? ?곸꽭 ?뚯씠釉?-->
             <div class="details-panel">
                 <div class="summary-title">Test Results by Stage</div>
                 
@@ -156,28 +147,27 @@
                                         <td colspan="8" style="font-weight: bold; padding: 8px;">{{ clean_name }}</td>
                                     </tr>
                                 {% else %}
-                                    {# New column structure: Test Stage | Total | Executed | Exec Rate | Pass Rate | Failed | Skipped | Timestamp | View Report #}
+                                    {# Our 9 columns: Name, Total, Executed, Passed, Failed, Skipped(No), Skipped(Yes), Timestamp, Link #}
                                     {% set total_str = parts[1].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '') %}
 
                                     {% if 'NT' not in total_str and total_str %}
                                         {% set total = total_str|int %}
                                         {% set executed = parts[2].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
-                                        {# parts[3] is Execution Rate, parts[4] is Pass Rate - we'll extract Pass Rate directly #}
-                                        {% set pass_rate_str = parts[4].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace('%', '') %}
-
-                                        {% set failed_str = parts[5] %}
+                                        {% set passed = parts[3].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
+                                        {% set failed_str = parts[4] %}
                                         {% if '<span' in failed_str %}
                                             {% set failed = failed_str.split('>')[2].split('<')[0].replace(',', '')|int %}
                                         {% else %}
                                             {% set failed = failed_str.replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
                                         {% endif %}
 
-                                        {% set skipped = parts[6].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
+                                        {% set skipped_no = parts[5].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
+                                        {% set skipped_yes = parts[6].replace('<td>', '').replace('<b>', '').replace('</b>', '').replace(',', '')|int %}
+                                        {% set skipped = skipped_no + skipped_yes %}
                                         {% set timestamp = parts[7].replace('<td>', '') %}
-                                        {% set report_link = parts[8] %}
+                                        {% set report_link = parts[8].replace('<td>', '') %}
 
-                                        {% set passed = executed - failed %}
-                                        {% set pass_rate = pass_rate_str|float if pass_rate_str else 0.0 %}
+                                        {% set pass_rate = (passed / total * 100) if total > 0 else 0.0 %}
 
                                         <tr {% if 'TOTAL' in name %}style="font-weight: bold; background: #f8f9fa;"{% endif %}>
                                             <td class="stage-name">{{ clean_name }}</td>
@@ -205,80 +195,5 @@
                     </tbody>
                 </table>
 
-                <!-- Module Test Summary -->
-                {% if module_rows %}
-                <div style="margin-top: 20px;">
-                    <div class="summary-title" style="margin-top: 20px;">Module Test Summary</div>
-
-                    <table class="stage-table" style="margin-top: 10px;">
-                        <thead>
-                            <tr>
-                                <th style="width: 15%;">Module</th>
-                                <th style="width: 10%;">Total Tests</th>
-                                <th style="width: 10%;">Executed Tests</th>
-                                <th style="width: 10%;">Passed</th>
-                                <th style="width: 10%;">Failed</th>
-                                <th style="width: 12%;">Skipped (No Reason)</th>
-                                <th style="width: 13%;">Skipped (With Reason)</th>
-                                <th style="width: 10%;">Pass Rate</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in module_rows %}
-                                <tr>{{ row|safe }}</tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% endif %}
-
-                <!-- Static Analysis Summary -->
-                <div style="margin-top: 20px;">
-                    <div class="summary-title" style="margin-top: 20px;">Static Analysis Summary</div>
-
-                    <table class="stage-table" style="margin-top: 10px;">
-                        <thead>
-                            <tr>
-                                <th style="width: 60%;">Component</th>
-                                <th style="width: 40%;">Violation Count</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr style="background: #f8f9fa; font-weight: bold;">
-                                <td>Total Violations</td>
-                                <td>
-                                    <span class="{% if sa_total_violations and sa_total_violations != '0' %}pass-rate-danger{% else %}pass-rate-good{% endif %}">
-                                        {{ sa_total_violations if sa_total_violations else "0" }}
-                                    </span>
-                                </td>
-                            </tr>
-                            {% if sa_component_counts %}
-                                {% for comp, count in sa_component_counts.items() %}
-                                <tr>
-                                    <td>{{ comp }}</td>
-                                    <td>{{ count }}</td>
-                                </tr>
-                                {% endfor %}
-                            {% endif %}
-                        </tbody>
-                    </table>
-
-                    {% if sa_total_violations and sa_total_violations != "0" %}
-                    <div style="margin-top: 10px; text-align: center;">
-                        <a href="SA_Report.html" class="report-link">
-                            View Detailed Static Analysis Report
-                        </a>
-                    </div>
-                    {% else %}
-                    <div style="margin-top: 10px; text-align: center; color: #6c757d; font-size: 0.9rem;">
-                        No static analysis violations found
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="html_resources/dashboard.js"></script>
-</body>
+                {# Module Test Summary removed per requirements #}
 </html>

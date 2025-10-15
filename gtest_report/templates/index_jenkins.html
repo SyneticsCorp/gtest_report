@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -406,7 +406,7 @@
                                 {% set skip_no = parts[5].replace('<td>', '').replace(',', '')|int %}
                                 {% set skip_yes = parts[6].replace('<td>', '').replace(',', '')|int %}
                                 {% set timestamp = parts[7].replace('<td>', '') %}
-                                {% set report_link = parts[8] %}
+                                {% set report_link = parts[8].replace('<td>', '') %}
                                 
                                 {% set pass_rate = (passed / total * 100) if total > 0 else 0 %}
                                 
@@ -436,41 +436,7 @@
             </table>
         </div>
         
-        <!-- Static Analysis Summary -->
-        <div class="summary-card">
-            <h2 class="section-title">Static Analysis Summary</h2>
-            
-            <table class="sa-table">
-                <thead>
-                    <tr>
-                        <th style="width: 60%;">Component</th>
-                        <th style="width: 40%;">Violation Count</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr class="sa-total-row">
-                        <td>Total Violations</td>
-                        <td>{{ sa_total_violations if sa_total_violations else "0" }}</td>
-                    </tr>
-                    {% if sa_component_counts %}
-                        {% for comp, count in sa_component_counts.items() %}
-                        <tr>
-                            <td>{{ comp }}</td>
-                            <td>{{ count }}</td>
-                        </tr>
-                        {% endfor %}
-                    {% endif %}
-                </tbody>
-            </table>
-            
-            {% if sa_total_violations and sa_total_violations != "0" %}
-                <p style="margin-top: 15px;">
-                    <a href="SA_Report.html">View Detailed Static Analysis Report</a>
-                </p>
-            {% else %}
-                <p class="no-violations">No static analysis violations found</p>
-            {% endif %}
-        </div>
+        {# Static Analysis Summary removed per requirements #}
     </div>
 </body>
 </html>

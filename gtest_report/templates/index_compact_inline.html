@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 </head>
 <body style="font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5;">
     <div style="max-width: 1400px; margin: 0 auto;">
-        <!-- 헤더 -->
+        <!-- ?ㅻ뜑 -->
         <div style="background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h1 style="margin: 0; color: #333; font-size: 24px;">{{ project_name }} Test Dashboard</h1>
@@ -28,9 +28,9 @@
             </div>
         </div>
         
-        <!-- 메인 콘텐츠 -->
+        <!-- 硫붿씤 肄섑뀗痢?-->
         <div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px;">
-            <!-- 왼쪽: 전체 요약 -->
+            <!-- ?쇱そ: ?꾩껜 ?붿빟 -->
             <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <h2 style="margin: 0 0 20px 0; padding-bottom: 10px; border-bottom: 2px solid #e0e0e0; font-size: 18px;">Overall Summary</h2>
                 
@@ -66,7 +66,7 @@
                     {% endif %}
                 {% endfor %}
                 
-                <!-- 통계 박스들 -->
+                <!-- ?듦퀎 諛뺤뒪??-->
                 <div style="display: grid; gap: 12px; margin-bottom: 20px;">
                     <div style="padding: 15px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 6px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -107,7 +107,7 @@
                 </div>
             </div>
             
-            <!-- 오른쪽: 상세 테이블 -->
+            <!-- ?ㅻⅨ履? ?곸꽭 ?뚯씠釉?-->
             <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <h2 style="margin: 0 0 20px 0; padding-bottom: 10px; border-bottom: 2px solid #e0e0e0; font-size: 18px;">Test Results by Stage</h2>
                 
@@ -146,7 +146,7 @@
                                     {% set skip_no = parts[5].replace('<td>', '').replace(',', '')|int %}
                                     {% set skip_yes = parts[6].replace('<td>', '').replace(',', '')|int %}
                                     {% set timestamp = parts[7].replace('<td>', '') %}
-                                    {% set report_link = parts[8] %}
+                                    {% set report_link = parts[8].replace('<td>', '') %}
                                     
                                     {% set pass_rate = (passed / total * 100) if total > 0 else 0 %}
                                     
@@ -181,45 +181,7 @@
                     </tbody>
                 </table>
                 
-                <!-- Static Analysis Summary -->
-                <h2 style="margin: 30px 0 20px 0; padding-bottom: 10px; border-bottom: 2px solid #e0e0e0; font-size: 18px;">Static Analysis Summary</h2>
-                
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: #f8f9fa;">
-                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6; font-size: 14px;">Component</th>
-                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #dee2e6; font-size: 14px;">Violation Count</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="background: #f8f9fa; font-weight: bold;">
-                            <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">Total Violations</td>
-                            <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: right;">
-                                <span style="color: {% if sa_total_violations and sa_total_violations != '0' %}#e74c3c{% else %}#27ae60{% endif %};">
-                                    {{ sa_total_violations if sa_total_violations else "0" }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% if sa_component_counts %}
-                            {% for comp, count in sa_component_counts.items() %}
-                            <tr>
-                                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">{{ comp }}</td>
-                                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: right;">{{ count }}</td>
-                            </tr>
-                            {% endfor %}
-                        {% endif %}
-                    </tbody>
-                </table>
-                
-                {% if sa_total_violations and sa_total_violations != "0" %}
-                <div style="margin-top: 20px; text-align: center;">
-                    <a href="SA_Report.html" style="display: inline-block; padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 14px;">View Detailed Static Analysis Report</a>
-                </div>
-                {% else %}
-                <div style="margin-top: 20px; text-align: center; color: #6c757d; font-size: 14px;">
-                    No static analysis violations found
-                </div>
-                {% endif %}
+                {# Static Analysis Summary removed per requirements #}
             </div>
         </div>
     </div>
