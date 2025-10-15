@@ -5,6 +5,7 @@ Google Test XML 파일을 파싱하여 결과 객체(TestFileResult, TestCaseRes
 PC Lint Plus 정적분석 XML도 파싱 가능하도록 확장
 """
 from xml.dom.minidom import parse
+import os
 from xml.parsers.expat import ExpatError
 from datetime import datetime
 from pathlib import Path
@@ -38,16 +39,35 @@ class TestFileResult:
         self.cases = cases
 
 
+def _to_windows_long_path(p: str) -> str:
+    """On Windows, add extended-length prefix if path is long.
+    This avoids MAX_PATH (260) issues when opening very long filenames.
+    """
+    if os.name != "nt":
+        return p
+    # Normalize to absolute backslash path
+    abs_p = os.path.abspath(p)
+    abs_p = abs_p.replace("/", "\\")
+    if abs_p.startswith("\\?\\"):
+        return abs_p
+    # UNC path: \\server\share -> \\?\UNC\server\share
+    if abs_p.startswith("\\\\"):
+        return "\\\\?\\UNC\\" + abs_p[2:]
+    return "\\\\?\\" + abs_p
+
+
 def parse_file(xml_path: Path | str) -> TestFileResult:
     """
     Google Test XML 결과 파싱
     """
     path_str = str(xml_path)
+    # Handle long paths on Windows
+    try_path = _to_windows_long_path(path_str)
     try:
-        dom = parse(path_str)
+        dom = parse(try_path)
     except ExpatError as e:
         raise RuntimeError(f"Failed to parse {path_str}: {e}")
-
+    
     # testsuites / testsuite 노드 찾기
     suites = dom.getElementsByTagName("testsuites") or dom.getElementsByTagName(
         "testsuite"
