@@ -75,14 +75,18 @@ def build_index_cells_for_uit(report_type: str, xml_paths: list[Path]) -> str:
         link = f'<a href="{report_type}_Report.html">View Report</a>'
         fail_html = f'<span style="color:red;">{failures:,}</span>' if failures else "0"
 
+        # Calculate rates
+        exec_rate = f"{(executed / total * 100):.1f}%" if total > 0 else "0.0%"
+        pass_rate = f"{(successes / (successes + failures) * 100):.1f}%" if (successes + failures) > 0 else "0.0%"
+
         cells = [
             name,
             f"{total:,}",
             f"{executed:,}",
-            f"{successes:,}",
+            exec_rate,
+            pass_rate,
             fail_html,
-            "0",  # skipped_no_reason placeholder
-            "0",  # skipped_with_reason placeholder
+            f"{skipped:,}",  # Total skipped
             ts_str,
             link,
         ]
@@ -468,9 +472,9 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path], incl
     name = DISPLAY_NAMES[report_type]
     modules = ["exec", "diag", "com"]
     rows = []
-    
+
     if not xml_paths:
-        # No XML files found - maintain original 9 column structure
+        # No XML files found - new 9 column structure
         cells = [name, "NT", "NT", "NT", "NT", "NT", "NT", "", ""]
         return ["".join(f"<td>{c}</td>" for c in cells)]
     
@@ -543,22 +547,27 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path], incl
 
             ts_str = min(timestamps).strftime("%Y-%m-%d %H:%M:%S") if timestamps else ""
             fail_html = f'<span style="color:red;">{failures:,}</span>' if failures else "0"
-            
+
+            # Calculate rates
+            exec_rate = f"{(executed / total * 100):.1f}%" if total > 0 else "0.0%"
+            pass_rate = f"{(successes / (successes + failures) * 100):.1f}%" if (successes + failures) > 0 else "0.0%"
+            skipped_total = skipped_no_reason + skipped_with_reason
+
             # Module rows are indented
             display_name = f"&nbsp;&nbsp;&nbsp;&nbsp;{module.upper()}"
-            
+
             cells = [
                 display_name,
                 f"{total:,}",
                 f"{executed:,}",
-                f"{successes:,}",
+                exec_rate,
+                pass_rate,
                 fail_html,
-                f"{skipped_no_reason:,}",
-                f"{skipped_with_reason:,}",
+                f"{skipped_total:,}",
                 ts_str,
                 "",  # No link for individual module rows
             ]
-            
+
             rows.append("".join(f"<td>{c}</td>" for c in cells))
             row_count += 1
             
@@ -569,19 +578,24 @@ def build_index_cells_with_modules(report_type: str, xml_paths: list[Path], incl
     if include_total and row_count > 0:
         ts_str_total = min(all_timestamps).strftime("%Y-%m-%d %H:%M:%S") if all_timestamps else ""
         fail_html_total = f'<span style="color:red;font-weight:bold">{failures_all:,}</span>' if failures_all else "<b>0</b>"
-        
+
+        # Calculate total rates
+        exec_rate_total = f"<b>{(executed_all / total_all * 100):.1f}%</b>" if total_all > 0 else "<b>0.0%</b>"
+        pass_rate_total = f"<b>{(successes_all / (successes_all + failures_all) * 100):.1f}%</b>" if (successes_all + failures_all) > 0 else "<b>0.0%</b>"
+        skipped_total_all = skipped_no_reason_all + skipped_with_reason_all
+
         total_cells = [
             f"&nbsp;&nbsp;&nbsp;&nbsp;<b>TOTAL</b>",  # Indented TOTAL
             f"<b>{total_all:,}</b>",
             f"<b>{executed_all:,}</b>",
-            f"<b>{successes_all:,}</b>",
+            exec_rate_total,
+            pass_rate_total,
             fail_html_total,
-            f"<b>{skipped_no_reason_all:,}</b>",
-            f"<b>{skipped_with_reason_all:,}</b>",
+            f"<b>{skipped_total_all:,}</b>",
             ts_str_total,
             f'<a href="{report_type}_Report.html">View Report</a>',  # Link on total row
         ]
-        
+
         rows.append("".join(f"<td>{c}</td>" for c in total_cells))
     
     return rows if rows else ["<td>" + name + "</td>" + "<td>No data</td>" * 8]
