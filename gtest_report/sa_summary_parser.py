@@ -11,6 +11,7 @@ def parse_sa_file_enhanced(report_xml_path: Path, debug: bool = False):
     comp_files = defaultdict(set)
     severity_counts = defaultdict(int)
     ruleid_counts = defaultdict(int)
+    code_counts = defaultdict(int)
     etc_files = []
 
     ruleid_pattern = re.compile(r"\[AUTOSAR Rule ([^\]]+)\]")
@@ -43,6 +44,11 @@ def parse_sa_file_enhanced(report_xml_path: Path, debug: bool = False):
             ruleid = m.group(1)
             ruleid_counts[ruleid] += 1
 
+        code_node = msg.getElementsByTagName("code")
+        if code_node and code_node[0].firstChild:
+            code = code_node[0].firstChild.nodeValue.strip()
+            code_counts[code] += 1
+
         if component == "etc":
             etc_files.append(file_path)
 
@@ -59,4 +65,5 @@ def parse_sa_file_enhanced(report_xml_path: Path, debug: bool = False):
         "comp_counts": dict(comp_counts),
         "severity_counts": dict(severity_counts),
         "ruleid_counts": dict(ruleid_counts),
+        "code_counts": dict(code_counts),
     }

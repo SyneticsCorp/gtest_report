@@ -12,6 +12,7 @@ def generate_sa_component_reports(report_xml_path: Path, output_dir: Path):
         "violations": 0,
         "severity_counts": defaultdict(int),
         "ruleid_counts": defaultdict(int),
+        "code_counts": defaultdict(int),
         "file_counts": defaultdict(int),
         "file_violations": defaultdict(list),
     })
@@ -38,6 +39,9 @@ def generate_sa_component_reports(report_xml_path: Path, output_dir: Path):
         m = ruleid_pattern.search(desc_text)
         ruleid = m.group(1) if m else None
 
+        code_node = msg.getElementsByTagName("code")
+        code = code_node[0].firstChild.nodeValue.strip() if code_node and code_node[0].firstChild else ""
+
         line_node = msg.getElementsByTagName("line")
         line = line_node[0].firstChild.nodeValue.strip() if line_node and line_node[0].firstChild else ""
 
@@ -48,9 +52,12 @@ def generate_sa_component_reports(report_xml_path: Path, output_dir: Path):
         comp_data["severity_counts"][severity] += 1
         if ruleid:
             comp_data["ruleid_counts"][ruleid] += 1
+        if code:
+            comp_data["code_counts"][code] += 1
         comp_data["file_counts"][file_path] += 1
         comp_data["file_violations"][file_path].append({
             "line": line,
+            "code": code,
             "ruleid": ruleid,
             "severity": severity,
             "desc": violation_text,
@@ -71,6 +78,7 @@ def generate_sa_component_reports(report_xml_path: Path, output_dir: Path):
             total_violations=f"{data['violations']:,}",
             severity_counts={k: f"{v:,}" for k, v in data["severity_counts"].items()},
             ruleid_counts={k: f"{v:,}" for k, v in data["ruleid_counts"].items()},
+            code_counts={k: f"{v:,}" for k, v in data["code_counts"].items()},
             file_counts={k: f"{v:,}" for k, v in data["file_counts"].items()},
             file_violations=data["file_violations"],
         )

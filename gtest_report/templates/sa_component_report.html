@@ -67,6 +67,7 @@
                             </tr>
                         </thead>
                         <tbody>
+                            {% if ruleid_counts %}
                             {% set sorted_ruleids = ruleid_counts.keys()|sort %}
                             {% for rid in sorted_ruleids %}
                             <tr>
@@ -74,6 +75,12 @@
                                 <td>{{ ruleid_counts[rid] }}</td>
                             </tr>
                             {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td>-</td>
+                                <td>0</td>
+                            </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
@@ -122,16 +129,18 @@
                         <thead>
                             <tr>
                                 <th style="width: 10%;">Line</th>
+                                <th style="width: 10%;">Code</th>
                                 <th style="width: 15%;">Rule ID</th>
-                                <th style="width: 15%;">Severity</th>
-                                <th style="width: 60%;">Description</th>
+                                <th style="width: 10%;">Severity</th>
+                                <th style="width: 55%;">Description</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for v in violations %}
                             <tr>
                                 <td>{{ v.line }}</td>
-                                <td>{{ v.ruleid }}</td>
+                                <td>{{ v.code if v.code else '-' }}</td>
+                                <td>{{ v.ruleid if v.ruleid else '-' }}</td>
                                 <td>{{ v.severity }}</td>
                                 <td>{{ v.desc }}</td>
                             </tr>

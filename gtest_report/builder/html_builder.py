@@ -72,6 +72,7 @@ def render_report(project_name, report_name, xml_paths, output_path,
             sa_component_counts={k: f"{v:,}" for k, v in sa_data.get("comp_counts", {}).items()},
             sa_severity_counts={k: f"{v:,}" for k, v in sa_data.get("severity_counts", {}).items()},
             sa_ruleid_counts={k: f"{v:,}" for k, v in sa_data.get("ruleid_counts", {}).items()},
+            sa_code_counts={k: f"{v:,}" for k, v in sa_data.get("code_counts", {}).items()},
             sa_data=sa_data,
         )
         output_path.write_text(html, encoding="utf-8")
