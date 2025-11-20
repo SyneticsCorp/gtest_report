@@ -17,6 +17,23 @@ def generate_sa_component_reports(report_xml_path: Path, output_dir: Path):
         "file_violations": defaultdict(list),
     })
 
+    # 먼저 모든 컴포넌트를 파악하여 초기화
+    for msg in messages:
+        file_node = msg.getElementsByTagName("file")
+        if not file_node or file_node[0].firstChild is None:
+            continue
+        file_path = file_node[0].firstChild.nodeValue.strip()
+        parts = Path(file_path).parts
+        component = "etc"
+        try:
+            idx = parts.index("para-api")
+            if idx + 1 < len(parts):
+                component = parts[idx + 1]
+        except ValueError:
+            pass
+        # 컴포넌트 초기화 (defaultdict가 자동으로 생성)
+        _ = components[component]
+
     for msg in messages:
         file_node = msg.getElementsByTagName("file")
         if not file_node or file_node[0].firstChild is None:
@@ -31,13 +48,18 @@ def generate_sa_component_reports(report_xml_path: Path, output_dir: Path):
         except ValueError:
             pass
 
-        type_node = msg.getElementsByTagName("type")
-        severity = type_node[0].firstChild.nodeValue.strip() if type_node and type_node[0].firstChild else "Unknown"
-
         desc_node = msg.getElementsByTagName("desc")
         desc_text = desc_node[0].firstChild.nodeValue.strip() if desc_node and desc_node[0].firstChild else ""
         m = ruleid_pattern.search(desc_text)
-        ruleid = m.group(1) if m else None
+
+        # Rule ID가 없으면 이 violation을 건너뛴다
+        if not m:
+            continue
+
+        ruleid = m.group(1)
+
+        type_node = msg.getElementsByTagName("type")
+        severity = type_node[0].firstChild.nodeValue.strip() if type_node and type_node[0].firstChild else "Unknown"
 
         code_node = msg.getElementsByTagName("code")
         code = code_node[0].firstChild.nodeValue.strip() if code_node and code_node[0].firstChild else ""
@@ -50,8 +72,7 @@ def generate_sa_component_reports(report_xml_path: Path, output_dir: Path):
         comp_data = components[component]
         comp_data["violations"] += 1
         comp_data["severity_counts"][severity] += 1
-        if ruleid:
-            comp_data["ruleid_counts"][ruleid] += 1
+        comp_data["ruleid_counts"][ruleid] += 1
         if code:
             comp_data["code_counts"][code] += 1
         comp_data["file_counts"][file_path] += 1

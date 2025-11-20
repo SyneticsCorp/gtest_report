@@ -67,7 +67,6 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% if ruleid_counts %}
                             {% set sorted_ruleids = ruleid_counts.keys()|sort %}
                             {% for rid in sorted_ruleids %}
                             <tr>
@@ -75,12 +74,6 @@
                                 <td>{{ ruleid_counts[rid] }}</td>
                             </tr>
                             {% endfor %}
-                            {% else %}
-                            <tr>
-                                <td>-</td>
-                                <td>0</td>
-                            </tr>
-                            {% endif %}
                         </tbody>
                     </table>
                 </div>
@@ -128,22 +121,24 @@
                     <table class="stage-table" style="margin-top: 5px;">
                         <thead>
                             <tr>
-                                <th style="width: 10%;">Line</th>
-                                <th style="width: 10%;">Code</th>
-                                <th style="width: 15%;">Rule ID</th>
-                                <th style="width: 10%;">Severity</th>
-                                <th style="width: 55%;">Description</th>
+                                <th style="width: 6%;">Line</th>
+                                <th style="width: 6%;">Code</th>
+                                <th style="width: 12%; white-space: nowrap;">Rule ID</th>
+                                <th style="width: 8%;">Severity</th>
+                                <th style="width: 68%;">Description</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for v in violations %}
+                            {% if v.ruleid %}
                             <tr>
                                 <td>{{ v.line }}</td>
                                 <td>{{ v.code if v.code else '-' }}</td>
-                                <td>{{ v.ruleid if v.ruleid else '-' }}</td>
+                                <td style="white-space: nowrap;">{{ v.ruleid }}</td>
                                 <td>{{ v.severity }}</td>
                                 <td>{{ v.desc }}</td>
                             </tr>
+                            {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>

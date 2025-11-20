@@ -16,6 +16,27 @@ def parse_sa_file_enhanced(report_xml_path: Path, debug: bool = False):
 
     ruleid_pattern = re.compile(r"\[AUTOSAR Rule ([^\]]+)\]")
 
+    # 먼저 모든 컴포넌트를 파악
+    all_components = set()
+    for msg in messages:
+        file_node = msg.getElementsByTagName("file")
+        if not file_node or file_node[0].firstChild is None:
+            continue
+        file_path = file_node[0].firstChild.nodeValue.strip()
+        parts = Path(file_path).parts
+        component = "etc"
+        try:
+            idx = parts.index("para-api")
+            if idx + 1 < len(parts):
+                component = parts[idx + 1]
+        except ValueError:
+            pass
+        all_components.add(component)
+
+    # 모든 컴포넌트를 0으로 초기화
+    for comp in all_components:
+        comp_counts[comp] = 0
+
     for msg in messages:
         file_node = msg.getElementsByTagName("file")
         if not file_node or file_node[0].firstChild is None:
@@ -30,19 +51,23 @@ def parse_sa_file_enhanced(report_xml_path: Path, debug: bool = False):
         except ValueError:
             pass
 
+        desc_node = msg.getElementsByTagName("desc")
+        desc_text = desc_node[0].firstChild.nodeValue.strip() if desc_node and desc_node[0].firstChild else ""
+        m = ruleid_pattern.search(desc_text)
+
+        # Rule ID가 없으면 이 violation을 건너뛴다
+        if not m:
+            continue
+
+        ruleid = m.group(1)
+        ruleid_counts[ruleid] += 1
+
         comp_counts[component] += 1
         comp_files[component].add(file_path)
 
         type_node = msg.getElementsByTagName("type")
         severity = type_node[0].firstChild.nodeValue.strip() if type_node and type_node[0].firstChild else "Unknown"
         severity_counts[severity] += 1
-
-        desc_node = msg.getElementsByTagName("desc")
-        desc_text = desc_node[0].firstChild.nodeValue.strip() if desc_node and desc_node[0].firstChild else ""
-        m = ruleid_pattern.search(desc_text)
-        if m:
-            ruleid = m.group(1)
-            ruleid_counts[ruleid] += 1
 
         code_node = msg.getElementsByTagName("code")
         if code_node and code_node[0].firstChild:

@@ -90,7 +90,6 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% if sa_ruleid_counts %}
                             {% set sorted_ruleids = sa_ruleid_counts.keys()|sort %}
                             {% for rid in sorted_ruleids %}
                             <tr>
@@ -98,16 +97,9 @@
                                 <td>{{ sa_ruleid_counts[rid] }}</td>
                             </tr>
                             {% endfor %}
-                            {% else %}
-                            <tr>
-                                <td>-</td>
-                                <td>0</td>
-                            </tr>
-                            {% endif %}
                         </tbody>
                     </table>
                 </div>
-
             </div>
         </div>
     </div>
