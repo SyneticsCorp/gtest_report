@@ -34,11 +34,9 @@ def generate_sa_component_reports(report_xml_path: Path, output_dir: Path):
         severity = type_node[0].firstChild.nodeValue.strip() if type_node and type_node[0].firstChild else "Unknown"
 
         desc_node = msg.getElementsByTagName("desc")
-        ruleid = "etc"
         desc_text = desc_node[0].firstChild.nodeValue.strip() if desc_node and desc_node[0].firstChild else ""
         m = ruleid_pattern.search(desc_text)
-        if m:
-            ruleid = m.group(1)
+        ruleid = m.group(1) if m else None
 
         line_node = msg.getElementsByTagName("line")
         line = line_node[0].firstChild.nodeValue.strip() if line_node and line_node[0].firstChild else ""
@@ -48,7 +46,8 @@ def generate_sa_component_reports(report_xml_path: Path, output_dir: Path):
         comp_data = components[component]
         comp_data["violations"] += 1
         comp_data["severity_counts"][severity] += 1
-        comp_data["ruleid_counts"][ruleid] += 1
+        if ruleid:
+            comp_data["ruleid_counts"][ruleid] += 1
         comp_data["file_counts"][file_path] += 1
         comp_data["file_violations"][file_path].append({
             "line": line,

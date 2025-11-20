@@ -39,8 +39,9 @@ def parse_sa_file_enhanced(report_xml_path: Path, debug: bool = False):
         desc_node = msg.getElementsByTagName("desc")
         desc_text = desc_node[0].firstChild.nodeValue.strip() if desc_node and desc_node[0].firstChild else ""
         m = ruleid_pattern.search(desc_text)
-        ruleid = m.group(1) if m else "etc"
-        ruleid_counts[ruleid] += 1
+        if m:
+            ruleid = m.group(1)
+            ruleid_counts[ruleid] += 1
 
         if component == "etc":
             etc_files.append(file_path)
