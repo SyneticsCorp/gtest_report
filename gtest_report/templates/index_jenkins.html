@@ -357,7 +357,7 @@
             </table>
             
             {% if ns.total_tests > 0 %}
-            {% set pass_rate = (ns.total_passed / ns.total_tests * 100) %}
+            {% set pass_rate = (ns.total_passed / (ns.total_passed + ns.total_failed) * 100) if (ns.total_passed + ns.total_failed) > 0 else 0 %}
             <div class="pass-rate-container">
                 <div class="pass-rate-label">Overall Pass Rate</div>
                 <div class="pass-rate-value {% if pass_rate > 90 %}pass-rate-good{% elif pass_rate > 70 %}pass-rate-warning{% else %}pass-rate-danger{% endif %}">
@@ -408,7 +408,7 @@
                                 {% set timestamp = parts[7].replace('<td>', '') %}
                                 {% set report_link = parts[8].replace('<td>', '') %}
                                 
-                                {% set pass_rate = (passed / total * 100) if total > 0 else 0 %}
+                                {% set pass_rate = (passed / (passed + failed) * 100) if (passed + failed) > 0 else 0 %}
                                 
                                 <tr>
                                     <td class="stage-name">{{ name }}</td>

@@ -167,7 +167,7 @@
                                         {% set timestamp = parts[7].replace('<td>', '') %}
                                         {% set report_link = parts[8].replace('<td>', '') %}
 
-                                        {% set pass_rate = (passed / total * 100) if total > 0 else 0.0 %}
+                                        {% set pass_rate = (passed / (passed + failed) * 100) if (passed + failed) > 0 else 0.0 %}
 
                                         <tr {% if 'TOTAL' in name %}style="font-weight: bold; background: #f8f9fa;"{% endif %}>
                                             <td class="stage-name">{{ clean_name }}</td>

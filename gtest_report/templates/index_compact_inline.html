@@ -148,7 +148,7 @@
                                     {% set timestamp = parts[7].replace('<td>', '') %}
                                     {% set report_link = parts[8].replace('<td>', '') %}
                                     
-                                    {% set pass_rate = (passed / total * 100) if total > 0 else 0 %}
+                                    {% set pass_rate = (passed / (passed + failed) * 100) if (passed + failed) > 0 else 0 %}
                                     
                                     <tr>
                                         <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: 600;">{{ name }}</td>

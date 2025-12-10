@@ -108,7 +108,7 @@
                 {% set skipped = p[4].replace('<td>', '').replace(',', '')|int + p[5].replace('<td>', '').replace(',', '')|int %}
                 {% set timestamp = p[6].replace('<td>', '') %}
                 {% set report_link = p[7].replace('<td>', '') %}
-                {% set pass_rate = (passed / total * 100) if total > 0 else 0 %}
+                {% set pass_rate = (passed / (passed + failed) * 100) if (passed + failed) > 0 else 0 %}
                 <tr>
                   <td>{{ name }}</td>
                   <td><strong>{{ "{:,}".format(total) }}</strong></td>
